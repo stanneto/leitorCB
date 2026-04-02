@@ -303,7 +303,7 @@
     state.lastAcceptedAt = now;
     state.readCooldownUntil = now + 4000;
     resetDetectionBuffer();
-    setStatus('success');
+    setStatus('success', 'Conteudo lido: ' + code);
     await stopScanner();
     playSuccessFeedback();
     showResultModal(code);
