@@ -574,20 +574,20 @@
     }
 
     const linearWide = {
-      sx: Math.round(frameWidth * 0.05),
-      sy: Math.round(frameHeight * 0.34),
-      sw: Math.round(frameWidth * 0.90),
-      sh: Math.round(frameHeight * 0.24)
+      sx: Math.round(frameWidth * 0.12),
+      sy: Math.round(frameHeight * 0.38),
+      sw: Math.round(frameWidth * 0.76),
+      sh: Math.round(frameHeight * 0.18)
     };
 
     const linearTall = {
-      sx: Math.round(frameWidth * 0.08),
-      sy: Math.round(frameHeight * 0.26),
-      sw: Math.round(frameWidth * 0.84),
-      sh: Math.round(frameHeight * 0.38)
+      sx: Math.round(frameWidth * 0.16),
+      sy: Math.round(frameHeight * 0.30),
+      sw: Math.round(frameWidth * 0.68),
+      sh: Math.round(frameHeight * 0.30)
     };
 
-    const squareSize = Math.round(Math.min(frameWidth, frameHeight) * 0.72);
+    const squareSize = Math.round(Math.min(frameWidth, frameHeight) * 0.56);
     const centerSquare = {
       sx: Math.round((frameWidth - squareSize) / 2),
       sy: Math.round((frameHeight - squareSize) / 2),
@@ -732,6 +732,96 @@
       formatName === 'QR Code';
   }
 
+  function isDigitsOnly(text) {
+    return /^[0-9]+$/.test(text);
+  }
+
+  function hasValidModulo10CheckDigit(text) {
+    if (!isDigitsOnly(text) || text.length < 2) {
+      return false;
+    }
+
+    let sum = 0;
+    const checkDigit = Number(text[text.length - 1]);
+    const body = text.slice(0, -1);
+    const parityFromRight = body.length % 2;
+
+    for (let index = 0; index < body.length; index += 1) {
+      const digit = Number(body[index]);
+      sum += (index % 2 === parityFromRight) ? digit * 3 : digit;
+    }
+
+    return ((10 - (sum % 10)) % 10) === checkDigit;
+  }
+
+  function expandUpceToUpca(text) {
+    if (!isDigitsOnly(text) || text.length !== 8) {
+      return '';
+    }
+
+    const numberSystem = text[0];
+    const manufacturer = text.slice(1, 6);
+    const checkDigit = text[7];
+    const lastDigit = manufacturer[4];
+    let upcaBody = '';
+
+    if (lastDigit === '0' || lastDigit === '1' || lastDigit === '2') {
+      upcaBody = numberSystem + manufacturer.slice(0, 2) + lastDigit + '0000' + manufacturer.slice(2, 4);
+    } else if (lastDigit === '3') {
+      upcaBody = numberSystem + manufacturer.slice(0, 3) + '00000' + manufacturer[3];
+    } else if (lastDigit === '4') {
+      upcaBody = numberSystem + manufacturer.slice(0, 4) + '00000' + manufacturer[4];
+    } else {
+      upcaBody = numberSystem + manufacturer.slice(0, 5) + '0000' + lastDigit;
+    }
+
+    return upcaBody + checkDigit;
+  }
+
+  function isPlausibleCode128(text) {
+    return text.length >= 6 && /^[\x20-\x7E]+$/.test(text);
+  }
+
+  function isPlausibleQrCode(text) {
+    return text.length >= 4;
+  }
+
+  function isValidForFormat(text, formatName) {
+    if (formatName === 'EAN-13') {
+      return text.length === 13 && hasValidModulo10CheckDigit(text);
+    }
+
+    if (formatName === 'EAN-8') {
+      return text.length === 8 && hasValidModulo10CheckDigit(text);
+    }
+
+    if (formatName === 'UPC-A') {
+      return text.length === 12 && hasValidModulo10CheckDigit(text);
+    }
+
+    if (formatName === 'UPC-E') {
+      return text.length === 8 && hasValidModulo10CheckDigit(expandUpceToUpca(text));
+    }
+
+    if (formatName === 'CODE-128') {
+      return isPlausibleCode128(text);
+    }
+
+    if (formatName === 'QR Code') {
+      return isPlausibleQrCode(text);
+    }
+
+    return true;
+  }
+
+  function getRequiredConfirmationHits(formatName) {
+    if (formatName === 'CODE-128' || formatName === 'QR Code') {
+      return 2;
+    }
+
+    return 1;
+  }
+
   function playSuccessFeedback() {
     if (navigator.vibrate) {
       navigator.vibrate(90);
@@ -810,7 +900,7 @@
     const normalized = normalizeDecodedText(text);
     const now = Date.now();
 
-    if (!isValidDetectedCode(normalized) || !isSupportedFormat(formatName)) {
+    if (!isValidDetectedCode(normalized) || !isSupportedFormat(formatName) || !isValidForFormat(normalized, formatName)) {
       return;
     }
 
@@ -823,6 +913,10 @@
       state.candidateHits = 1;
     } else {
       state.candidateHits += 1;
+    }
+
+    if (state.candidateHits < getRequiredConfirmationHits(formatName)) {
+      return;
     }
 
     state.lastAcceptedCode = normalized;

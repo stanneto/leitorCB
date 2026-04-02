@@ -148,7 +148,7 @@ h1 {
 
 .camera-card {
   position: relative;
-  width: min(100%, 520px);
+  width: min(100%, 430px);
   margin-left: auto;
   margin-right: auto;
   overflow: hidden;
@@ -159,9 +159,9 @@ h1 {
 
 .video-stage {
   position: relative;
-  min-height: 300px;
+  min-height: 250px;
   aspect-ratio: 3 / 4;
-  max-height: 62vh;
+  max-height: 52vh;
 }
 
 .reader-surface,
@@ -197,8 +197,8 @@ h1 {
 
 .scan-frame {
   position: relative;
-  width: min(78vw, 320px);
-  height: min(36vw, 150px);
+  width: min(62vw, 250px);
+  height: min(24vw, 110px);
   border-radius: 22px;
   border: 2px solid rgba(255, 255, 255, 0.82);
   box-shadow:
@@ -414,7 +414,7 @@ body.modal-open {
   }
 
   .video-stage {
-    min-height: 320px;
+    min-height: 270px;
   }
 }
 
