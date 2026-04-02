@@ -1,0 +1,25 @@
+{
+  "name": "leitor-patrimonial-https",
+  "version": "1.0.0",
+  "description": "Leitor web de codigo de barras patrimonial com Node.js HTTPS e foco em Code 128.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "local-ip": "node scripts/print-local-ip.mjs",
+    "generate-cert": "node scripts/generate-dev-certificate.mjs"
+  },
+  "keywords": [
+    "barcode",
+    "code-128",
+    "https",
+    "mobile",
+    "scanner"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "html5-qrcode": "^2.3.8",
+    "selfsigned": "^3.0.1"
+  }
+}
