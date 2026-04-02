@@ -14,12 +14,6 @@ const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const CERT_DIR = path.join(ROOT_DIR, 'certs');
 const HTTPS_KEY_PATH = process.env.HTTPS_KEY_PATH || path.join(CERT_DIR, 'dev-key.pem');
 const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH || path.join(CERT_DIR, 'dev-cert.pem');
-const VENDOR_CANDIDATES = {
-  '/vendor/zxing-browser.min.js': [
-    path.join(ROOT_DIR, 'node_modules', '@zxing', 'browser', 'umd', 'zxing-browser.min.js')
-  ]
-};
-
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -54,16 +48,6 @@ function loadHttpsCredentials() {
     key: fs.readFileSync(HTTPS_KEY_PATH),
     cert: fs.readFileSync(HTTPS_CERT_PATH)
   };
-}
-
-function getVendorFile(urlPathname) {
-  const candidates = VENDOR_CANDIDATES[urlPathname];
-
-  if (!candidates) {
-    return null;
-  }
-
-  return candidates.find(fileExists) || null;
 }
 
 function getContentType(filePath) {
@@ -135,12 +119,6 @@ function createRequestListener(httpsEnabled) {
         host: HOST,
         networkAddresses: getLocalNetworkAddresses()
       });
-    }
-
-    const vendorFile = getVendorFile(pathname);
-
-    if (vendorFile) {
-      return sendFile(response, vendorFile, 'public, max-age=86400');
     }
 
     const publicFile = safeResolvePublicFile(pathname);
