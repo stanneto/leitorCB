@@ -1,20 +1,19 @@
 # Leitor Patrimonial HTTPS
 
-Projeto completo em Node.js com frontend web responsivo e mobile-first para leitura de etiquetas patrimoniais por camera, com foco em **Code 128** e com suporte a HTTPS local para uso no iPhone.
+Projeto completo em Node.js com frontend web responsivo e mobile-first para leitura de etiquetas patrimoniais por camera, com foco em **Code 128**, usando **ZXing** como motor principal e com suporte a HTTPS local para uso no iPhone.
 
 ## Recursos
 
 - Servidor local em Node.js com HTTPS automatico quando houver certificado local
+- Leitura em tempo real com ZXing, sem depender de `BarcodeDetector` nativo
 - Interface web mobile-first com guia visual central
-- Solicitacao correta de permissao de camera
-- Preferencia pela camera traseira
-- Ajustes extras para Safari/iPhone: video inline, preferencia por foco continuo e resolucao mais alta
-- Leitura priorizando `Code 128` e suporte adicional a `EAN-13`, `EAN-8`, `UPC-A`, `UPC-E` e `QR Code`
-- Pausa imediata ao detectar um codigo valido
-- Modal de resultado com botoes `Ler novamente` e `Copiar codigo`
-- Feedback visual para permissao, leitura, sucesso, falha e incompatibilidade
-- Vibracao e som discreto de confirmacao quando suportados
-- Limpeza correta do stream ao parar, trocar de aba ou fechar a pagina
+- Solicitacao correta de permissao de camera somente apos tocar em `Iniciar leitura`
+- Preferencia pela camera traseira com fallback seguro para iPhone e Android
+- Ajustes extras para Safari/iPhone: video inline, foco continuo quando disponivel e resolucao adequada
+- Suporte a `EAN-13`, `EAN-8`, `CODE-128`, `UPC-A`, `UPC-E` e `QR Code`
+- Timeout de leitura com mensagem visivel ao usuario
+- Modal final com `Codigo lido`, `Fechar` e `Ler novamente`
+- Limpeza correta do stream ao parar, trocar de aba, sair da pagina ou reiniciar a leitura
 
 ## Estrutura
 
@@ -41,7 +40,7 @@ Tenha Node.js 18 ou superior instalado.
 npm install
 ```
 
-Isso instala a biblioteca `html5-qrcode`, usada no navegador para leitura de codigo de barras com foco em boa compatibilidade mobile.
+Isso instala `@zxing/browser` e `@zxing/library`, usados para leitura em tempo real com melhor previsibilidade no iPhone e no Android.
 
 ## 2. Como preparar HTTPS local para iPhone
 
@@ -91,52 +90,53 @@ Abra `https://localhost:3000` quando houver certificado local. Sem certificado, 
 https://SEU-IP-LOCAL:3000
 ```
 
-No primeiro acesso, o certificado local pode precisar ser confiado manualmente no aparelho para que o Safari libere a camera.
+No primeiro acesso, o certificado local pode precisar ser confiado manualmente no aparelho para que o Safari ou o Chrome no iPhone liberem a camera.
 
 ## 6. Limitacoes conhecidas
 
 - iPhone e iPad normalmente exigem HTTPS para liberar camera em navegadores baseados em WebKit.
 - Certificados autoassinados podem exigir confianca manual no iPhone.
 - Em Android, muitos navegadores tambem bloqueiam camera em HTTP fora de `localhost`.
-- Safari, Chrome, Edge e Firefox no iPhone compartilham as mesmas limitacoes de motor.
+- Safari, Chrome, Edge e Firefox no iPhone compartilham o mesmo motor WebKit.
 - Controle fino de foco e zoom varia por aparelho e versao do sistema.
-- Em segundo plano, o navegador pode suspender o video; o projeto interrompe o stream para evitar inconsistencias.
 
-## 7. Como testar a leitura da etiqueta patrimonial
+## 7. Como testar a leitura
 
 1. Abra a pagina no navegador.
 2. Toque em `Iniciar leitura`.
 3. Permita o acesso a camera.
 4. Posicione a etiqueta na moldura central.
-5. Ajuste a distancia ate o numero ficar nitido.
-6. Ao detectar, a leitura para automaticamente e o valor aparece em destaque.
+5. Ajuste a distancia ate o codigo ficar nitido.
+6. Ao detectar, o app para a camera e exibe o modal `Codigo lido`.
+7. Use `Fechar` para voltar ao app ou `Ler novamente` para reiniciar a leitura sem recarregar a pagina.
 
 ## Compatibilidade pensada no projeto
 
-- iPhone: Safari, Chrome, Edge e Firefox
+- iPhone: Safari e Chrome no iOS
 - Android: Chrome, Edge, Firefox e Samsung Internet
 
 O projeto usa:
 
 - `getUserMedia`
 - preferencia por `facingMode: environment`
-- `html5-qrcode` com `BarcodeDetector` nativo desativado para manter comportamento previsivel no iPhone
+- ZXing como mecanismo principal de decodificacao em tempo real
 - video inline para evitar comportamento inconsistente do Safari
-- tentativa de foco continuo e ajuste moderado de zoom quando o navegador expõe esses controles
-- area de leitura central reduzida para melhorar desempenho e confiabilidade
+- tentativa de foco continuo e ajuste moderado de zoom quando o navegador expoe esses controles
 - confirmacao da mesma leitura em mais de um frame para reduzir falso positivo
+- timeout de leitura com encerramento limpo da camera
 
 ## Tratamento de erros implementado
 
 - permissao negada
-- camera indisponivel
-- navegador incompativel
-- falha de inicializacao do video
-- ausencia de leitura detectada
+- ausencia de camera
+- contexto inseguro
+- falha ao iniciar o video
+- falha da biblioteca de leitura
+- timeout de leitura
 - limpeza do stream em reinicio, troca de aba e saida da pagina
 
 ## Observacoes de producao
 
-- Para iPhone em rede local, HTTPS continua sendo o caminho mais confiavel.
-- Se quiser maximizar a leitura da etiqueta patrimonial, teste a distancia ideal do aparelho e a iluminacao do ambiente real.
-- Se algum aparelho abrir a camera frontal, revise se o navegador respeitou `environment`; alguns dispositivos antigos tratam isso apenas como preferencia.
+- Para teste real no iPhone fora de `localhost`, HTTPS e obrigatorio.
+- O fato de funcionar em `localhost` no desktop nao garante o mesmo comportamento no iPhone.
+- Se algum aparelho abrir a camera frontal, o app tenta reapontar para a traseira sem depender de `BarcodeDetector`.

@@ -6,75 +6,111 @@
   const startButton = document.getElementById('start-button');
   const stopButton = document.getElementById('stop-button');
   const retryButton = document.getElementById('retry-button');
-  const copyButton = document.getElementById('copy-button');
+  const closeButton = document.getElementById('close-button');
   const resultModal = document.getElementById('result-modal');
   const resultCode = document.getElementById('result-code');
-  const resultCopy = document.getElementById('result-copy');
+  const resultNote = document.getElementById('result-note');
   const resultInline = document.getElementById('result-inline');
   const resultInlineCode = document.getElementById('result-inline-code');
   const videoStage = document.getElementById('video-stage');
+  const previewVideo = document.getElementById('camera-preview');
+
+  const ZXingApi = window.ZXingBrowser;
+  const ZXingCore = window.ZXing;
+  const supportedFormats = ZXingApi && ZXingCore ? [
+    ZXingCore.BarcodeFormat.EAN_13,
+    ZXingCore.BarcodeFormat.EAN_8,
+    ZXingCore.BarcodeFormat.CODE_128,
+    ZXingCore.BarcodeFormat.UPC_A,
+    ZXingCore.BarcodeFormat.UPC_E,
+    ZXingCore.BarcodeFormat.QR_CODE
+  ] : [];
+
+  const hints = new Map();
+  if (window.ZXing && window.ZXing.DecodeHintType) {
+    hints.set(window.ZXing.DecodeHintType.POSSIBLE_FORMATS, supportedFormats);
+    hints.set(window.ZXing.DecodeHintType.TRY_HARDER, true);
+  }
 
   const statusCatalog = {
     idle: {
-      pill: 'Aguardando permissao da camera',
-      text: ''
+      pill: 'Pronto para leitura',
+      text: 'Toque em Iniciar leitura para liberar a camera e posicionar o codigo de barras na moldura.'
+    },
+    requesting: {
+      pill: 'Solicitando camera',
+      text: 'Confirme a permissao no navegador para usar a camera traseira.'
     },
     guiding: {
-      pill: 'Posicione o codigo dentro da area de leitura',
-      text: 'Mantenha a etiqueta centralizada, com boa iluminacao, e ajuste a distancia ate as barras ficarem nitidas.'
+      pill: 'Posicione o codigo de barras',
+      text: 'Centralize o codigo na area de leitura, mantenha boa iluminacao e aproxime ate ficar nitido.'
     },
     reading: {
-      pill: 'Lendo...',
-      text: 'Segure o aparelho com firmeza por alguns instantes para aumentar a confiabilidade da leitura.'
+      pill: 'Lendo codigo de barras',
+      text: 'Segure o aparelho com firmeza por alguns instantes enquanto a leitura acontece.'
     },
     success: {
-      pill: 'Codigo detectado com sucesso',
-      text: 'A leitura foi pausada automaticamente para evitar duplicidade.'
+      pill: 'Codigo detectado',
+      text: 'Leitura concluida com sucesso.'
     },
-    empty: {
-      pill: 'Nenhum codigo detectado',
-      text: 'Tente aproximar ou afastar levemente a camera, reduzir reflexos e alinhar melhor a etiqueta.'
+    timeout: {
+      pill: 'Tempo de leitura encerrado',
+      text: 'Nao encontramos um codigo dentro do tempo esperado. Toque em Ler novamente e tente outra distancia.'
     },
-    unsupported: {
-      pill: 'Camera nao suportada neste navegador',
-      text: 'Use um navegador moderno com acesso liberado a camera. Em muitos aparelhos, HTTP permite camera apenas em localhost.'
+    insecure: {
+      pill: 'HTTPS necessario',
+      text: 'No iPhone, a camera exige HTTPS ou localhost. Abra este app em https:// para testar de forma confiavel.'
     },
     denied: {
-      pill: 'Permissao de camera negada',
+      pill: 'Permissao negada',
       text: 'Libere o acesso a camera nas configuracoes do navegador e tente novamente.'
     },
+    noCamera: {
+      pill: 'Nenhuma camera encontrada',
+      text: 'Nao foi encontrada uma camera disponivel neste aparelho.'
+    },
     unavailable: {
-      pill: 'Camera indisponivel',
-      text: 'Nao foi possivel acessar a camera traseira. Feche outros apps usando a camera e tente novamente.'
+      pill: 'Nao foi possivel acessar a camera',
+      text: 'Feche outros apps que estejam usando a camera e tente novamente.'
     },
     initError: {
-      pill: 'Falha de inicializacao do video',
-      text: 'O navegador nao conseguiu iniciar o video da camera com seguranca.'
+      pill: 'Falha ao iniciar video',
+      text: 'O navegador nao conseguiu iniciar a visualizacao da camera com seguranca.'
+    },
+    libraryError: {
+      pill: 'Falha no leitor',
+      text: 'A biblioteca de leitura nao conseguiu processar a camera corretamente.'
+    },
+    stopped: {
+      pill: 'Camera parada',
+      text: 'Toque em Iniciar leitura para abrir a camera novamente.'
     }
   };
 
-  const supportedFormats = [
-    Html5QrcodeSupportedFormats.CODE_128,
-    Html5QrcodeSupportedFormats.EAN_13,
-    Html5QrcodeSupportedFormats.EAN_8,
-    Html5QrcodeSupportedFormats.UPC_A,
-    Html5QrcodeSupportedFormats.UPC_E,
-    Html5QrcodeSupportedFormats.QR_CODE
-  ];
-
   const state = {
-    scanner: null,
+    reader: null,
+    controls: null,
+    stream: null,
     isStarting: false,
     isScanning: false,
     isStopping: false,
-    preferredCameraId: '',
-    readCooldownUntil: 0,
-    lastFailureNoticeAt: 0,
+    timeoutId: 0,
     candidateText: '',
     candidateHits: 0,
     lastAcceptedCode: '',
-    lastAcceptedAt: 0
+    lastAcceptedAt: 0,
+    lastFailureNoticeAt: 0
   };
+
+  const formatLabels = {};
+  if (ZXingCore && ZXingCore.BarcodeFormat) {
+    formatLabels[ZXingCore.BarcodeFormat.EAN_13] = 'EAN-13';
+    formatLabels[ZXingCore.BarcodeFormat.EAN_8] = 'EAN-8';
+    formatLabels[ZXingCore.BarcodeFormat.CODE_128] = 'CODE-128';
+    formatLabels[ZXingCore.BarcodeFormat.UPC_A] = 'UPC-A';
+    formatLabels[ZXingCore.BarcodeFormat.UPC_E] = 'UPC-E';
+    formatLabels[ZXingCore.BarcodeFormat.QR_CODE] = 'QR Code';
+  }
 
   function isIosDevice() {
     const userAgent = window.navigator.userAgent || '';
@@ -91,66 +127,46 @@
   }
 
   function setButtons() {
-    startButton.disabled = state.isStarting || state.isScanning;
+    startButton.disabled = state.isStarting || state.isScanning || !isEnvironmentReady();
     stopButton.disabled = !state.isScanning || state.isStopping;
   }
 
-  function isScannerSupported() {
-    return Boolean(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.Html5Qrcode);
+  function isEnvironmentReady() {
+    return Boolean(
+      window.isSecureContext &&
+      navigator.mediaDevices &&
+      navigator.mediaDevices.getUserMedia &&
+      window.ZXing &&
+      window.ZXingBrowser &&
+      window.ZXingBrowser.BrowserMultiFormatReader
+    );
   }
 
-  function getScannerVideoElement() {
-    return videoStage.querySelector('video');
+  function getFormatLabel(formatValue) {
+    return formatLabels[formatValue] || String(formatValue || '');
   }
 
-  function tuneVideoElementForMobile() {
-    const video = getScannerVideoElement();
-
-    if (!video) {
-      return;
+  function clearScanTimeout() {
+    if (state.timeoutId) {
+      window.clearTimeout(state.timeoutId);
+      state.timeoutId = 0;
     }
-
-    video.setAttribute('playsinline', 'true');
-    video.setAttribute('webkit-playsinline', 'true');
-    video.setAttribute('muted', 'true');
-    video.muted = true;
-    video.autoplay = true;
   }
 
-  async function applyPlatformCameraTuning(scanner) {
-    tuneVideoElementForMobile();
-
-    if (!isIosDevice() || !scanner) {
-      return;
-    }
-
-    try {
-      const capabilities = scanner.getRunningTrackCapabilities();
-      const advanced = [];
-
-      if (capabilities && Array.isArray(capabilities.focusMode)) {
-        if (capabilities.focusMode.includes('continuous')) {
-          advanced.push({ focusMode: 'continuous' });
-        } else if (capabilities.focusMode.includes('single-shot')) {
-          advanced.push({ focusMode: 'single-shot' });
-        }
+  function startScanTimeout() {
+    clearScanTimeout();
+    state.timeoutId = window.setTimeout(function () {
+      if (!state.isScanning) {
+        return;
       }
 
-      if (capabilities && typeof capabilities.zoom === 'object' && typeof capabilities.zoom.max === 'number') {
-        const minZoom = typeof capabilities.zoom.min === 'number' ? capabilities.zoom.min : 1;
-        const maxZoom = capabilities.zoom.max;
-
-        if (maxZoom > minZoom) {
-          advanced.push({ zoom: Math.min(maxZoom, Math.max(minZoom, 1.8)) });
-        }
-      }
-
-      if (advanced.length > 0) {
-        await scanner.applyVideoConstraints({ advanced: advanced });
-      }
-    } catch (error) {
-      console.warn('Nao foi possivel aplicar ajustes extras de camera para iPhone.', error);
-    }
+      stopScanner({ keepStatus: true }).then(function () {
+        setStatus('timeout');
+      }).catch(function (error) {
+        console.error('Falha ao encerrar leitura por timeout.', error);
+        setStatus('timeout');
+      });
+    }, 30000);
   }
 
   function resetDetectionBuffer() {
@@ -162,7 +178,12 @@
     return String(decodedText || '').trim();
   }
 
-  function stopStream(stream) {
+  function isTransientDecodeError(error) {
+    const errorName = String(error && error.name ? error.name : '');
+    return errorName === 'NotFoundException' || errorName === 'ChecksumException' || errorName === 'FormatException';
+  }
+
+  function stopTracks(stream) {
     if (!stream) {
       return;
     }
@@ -172,133 +193,196 @@
     }
   }
 
+  function clearVideoElement() {
+    previewVideo.pause();
+    previewVideo.removeAttribute('src');
+    previewVideo.srcObject = null;
+    previewVideo.load();
+  }
+
+  function prepareVideoElement() {
+    previewVideo.setAttribute('autoplay', 'true');
+    previewVideo.setAttribute('muted', 'true');
+    previewVideo.setAttribute('playsinline', 'true');
+    previewVideo.setAttribute('webkit-playsinline', 'true');
+    previewVideo.muted = true;
+    previewVideo.playsInline = true;
+  }
+
   function scoreCameraLabel(label) {
     const normalized = String(label || '').toLowerCase();
     let score = 0;
 
-    if (normalized.includes('back') || normalized.includes('rear') || normalized.includes('traseira')) {
+    if (normalized.includes('back') || normalized.includes('rear') || normalized.includes('traseira') || normalized.includes('environment')) {
       score += 8;
-    }
-
-    if (normalized.includes('environment')) {
-      score += 6;
     }
 
     if (normalized.includes('wide')) {
       score += 2;
     }
 
-    if (normalized.includes('front') || normalized.includes('frontal') || normalized.includes('user')) {
+    if (normalized.includes('front') || normalized.includes('frontal') || normalized.includes('user') || normalized.includes('face')) {
       score -= 10;
     }
 
     return score;
   }
 
-  function pickBestCamera(cameras) {
-    if (!Array.isArray(cameras) || cameras.length === 0) {
+  function pickBestCamera(devices) {
+    if (!Array.isArray(devices) || devices.length === 0) {
       return null;
     }
 
-    const ranked = cameras
-      .map(function (camera) {
-        return {
-          camera: camera,
-          score: scoreCameraLabel(camera.label)
-        };
-      })
+    return devices
+      .slice()
       .sort(function (left, right) {
-        return right.score - left.score;
-      });
-
-    return ranked[0].camera;
+        return scoreCameraLabel(right.label) - scoreCameraLabel(left.label);
+      })[0];
   }
 
-  async function preparePreferredCamera() {
-    let permissionProbeStream = null;
+  async function listVideoDevicesSafe() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      return [];
+    }
 
     try {
-      permissionProbeStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return devices.filter(function (device) {
+        return device.kind === 'videoinput';
       });
-
-      const cameras = await Html5Qrcode.getCameras();
-      const preferredCamera = pickBestCamera(cameras);
-
-      state.preferredCameraId = preferredCamera ? preferredCamera.id : '';
-    } finally {
-      stopStream(permissionProbeStream);
+    } catch (error) {
+      console.warn('Nao foi possivel listar as cameras.', error);
+      return [];
     }
   }
 
-  function isLikelyAssetCode(decodedText, result) {
-    const formatName = result && result.result && result.result.format ? result.result.format.formatName : '';
-    const normalized = normalizeDecodedText(decodedText);
+  function getPrimaryVideoConstraints() {
+    return {
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: isIosDevice() ? 1920 : 1280 },
+        height: { ideal: isIosDevice() ? 1080 : 720 }
+      }
+    };
+  }
 
-    if (!normalized) {
-      return false;
+  function getFallbackVideoConstraints() {
+    return {
+      audio: false,
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    };
+  }
+
+  async function applyTrackTuning(track) {
+    if (!track || !track.getCapabilities || !track.applyConstraints) {
+      return;
     }
 
-    if (formatName === 'CODE_128' && /^\d{6,12}$/.test(normalized)) {
-      return true;
+    try {
+      const capabilities = track.getCapabilities();
+      const advanced = [];
+
+      if (Array.isArray(capabilities.focusMode)) {
+        if (capabilities.focusMode.includes('continuous')) {
+          advanced.push({ focusMode: 'continuous' });
+        } else if (capabilities.focusMode.includes('single-shot')) {
+          advanced.push({ focusMode: 'single-shot' });
+        }
+      }
+
+      if (capabilities.zoom && typeof capabilities.zoom.max === 'number') {
+        const minZoom = typeof capabilities.zoom.min === 'number' ? capabilities.zoom.min : 1;
+        const maxZoom = capabilities.zoom.max;
+        if (maxZoom > minZoom) {
+          advanced.push({ zoom: Math.min(maxZoom, Math.max(minZoom, 1.6)) });
+        }
+      }
+
+      if (advanced.length > 0) {
+        await track.applyConstraints({ advanced: advanced });
+      }
+    } catch (error) {
+      console.warn('Ajustes extras de foco/zoom nao puderam ser aplicados.', error);
+    }
+  }
+
+  async function requestBestAvailableStream() {
+    let stream;
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(getPrimaryVideoConstraints());
+    } catch (primaryError) {
+      const primaryMessage = String(primaryError && primaryError.message ? primaryError.message : primaryError);
+
+      if (
+        primaryMessage.includes('OverconstrainedError') ||
+        primaryMessage.includes('NotFoundError') ||
+        primaryMessage.includes('ConstraintNotSatisfiedError')
+      ) {
+        stream = await navigator.mediaDevices.getUserMedia(getFallbackVideoConstraints());
+      } else {
+        throw primaryError;
+      }
     }
 
-    return normalized.length >= 6;
+    const devices = await listVideoDevicesSafe();
+    const preferredDevice = pickBestCamera(devices);
+    const videoTrack = stream.getVideoTracks()[0];
+    const settings = videoTrack && videoTrack.getSettings ? videoTrack.getSettings() : {};
+    const currentLabel = videoTrack ? videoTrack.label : '';
+    const usingFrontCamera = String(settings.facingMode || '').toLowerCase() === 'user' || scoreCameraLabel(currentLabel) < 0;
+
+    if (preferredDevice && usingFrontCamera) {
+      try {
+        const retryStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            deviceId: { exact: preferredDevice.deviceId },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+
+        stopTracks(stream);
+        stream = retryStream;
+      } catch (retryError) {
+        console.warn('Nao foi possivel trocar para a camera traseira preferida.', retryError);
+      }
+    }
+
+    const activeTrack = stream.getVideoTracks()[0];
+    await applyTrackTuning(activeTrack);
+
+    return stream;
   }
 
   function updateGuidanceFromFailure() {
     const now = Date.now();
     if (now - state.lastFailureNoticeAt > 3500) {
       state.lastFailureNoticeAt = now;
-      setStatus('empty');
+      setStatus('guiding', 'Posicione o codigo de barras dentro da moldura e aguarde o foco ficar nitido.');
     }
+  }
+
+  function isValidDetectedCode(text) {
+    return normalizeDecodedText(text).length > 0;
   }
 
   function playSuccessFeedback() {
     if (navigator.vibrate) {
       navigator.vibrate(90);
     }
-
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-
-    if (!AudioContextClass) {
-      return;
-    }
-
-    try {
-      const audioContext = new AudioContextClass();
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      const currentTime = audioContext.currentTime;
-
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(987, currentTime);
-      gain.gain.setValueAtTime(0.001, currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.05, currentTime + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, currentTime + 0.16);
-
-      oscillator.connect(gain);
-      gain.connect(audioContext.destination);
-      oscillator.start(currentTime);
-      oscillator.stop(currentTime + 0.16);
-      oscillator.onended = function () {
-        audioContext.close().catch(function () {});
-      };
-    } catch (error) {
-      console.warn('Nao foi possivel tocar o som de confirmacao.', error);
-    }
   }
 
-  function showResultModal(code) {
+  function showResultModal(code, formatName) {
     resultCode.textContent = code;
     resultInlineCode.textContent = code;
     resultInline.classList.remove('hidden');
-    resultCopy.textContent = 'O scanner foi pausado para evitar leituras duplicadas. Copie o valor ou inicie uma nova leitura.';
+    resultNote.textContent = formatName ? 'Formato detectado: ' + formatName : 'Leitura concluida com sucesso.';
     resultModal.classList.remove('hidden');
     document.body.classList.add('modal-open');
   }
@@ -308,11 +392,32 @@
     document.body.classList.remove('modal-open');
   }
 
-  async function stopScanner() {
-    if (!state.scanner || !state.isScanning || state.isStopping) {
-      state.isScanning = false;
-      state.isStopping = false;
-      setButtons();
+  async function disposeScannerInternals() {
+    clearScanTimeout();
+
+    if (state.controls) {
+      try {
+        state.controls.stop();
+      } catch (error) {
+        console.warn('Falha ao encerrar os controles do scanner.', error);
+      }
+      state.controls = null;
+    }
+
+    if (state.stream) {
+      stopTracks(state.stream);
+      state.stream = null;
+    }
+
+    state.reader = null;
+    clearVideoElement();
+    resetDetectionBuffer();
+  }
+
+  async function stopScanner(options) {
+    const stopOptions = options || {};
+
+    if (state.isStopping) {
       return;
     }
 
@@ -320,106 +425,71 @@
     setButtons();
 
     try {
-      await state.scanner.stop();
-      state.scanner.clear();
-    } catch (error) {
-      console.warn('Falha ao interromper o scanner.', error);
-    } finally {
-      state.scanner = null;
+      await disposeScannerInternals();
       state.isScanning = false;
+      state.isStarting = false;
+      if (!stopOptions.keepStatus) {
+        setStatus('stopped');
+      }
+    } finally {
       state.isStopping = false;
       setButtons();
     }
   }
 
-  async function handleSuccess(decodedText, result) {
-    const code = normalizeDecodedText(decodedText);
+  async function finalizeSuccessfulRead(text, formatName) {
+    const normalized = normalizeDecodedText(text);
     const now = Date.now();
-    const formatName = result && result.result && result.result.format ? result.result.format.formatName : '';
 
-    if (!isLikelyAssetCode(code, result)) {
+    if (!isValidDetectedCode(normalized)) {
       return;
     }
 
-    if (state.lastAcceptedCode === code && now - state.lastAcceptedAt < 4000) {
+    if (state.lastAcceptedCode === normalized && now - state.lastAcceptedAt < 4000) {
       return;
     }
 
-    if (state.candidateText !== code) {
-      state.candidateText = code;
+    if (state.candidateText !== normalized) {
+      state.candidateText = normalized;
       state.candidateHits = 1;
       return;
     }
 
     state.candidateHits += 1;
 
-    if (state.candidateHits < 2 && formatName === 'CODE_128') {
+    if (state.candidateHits < 2) {
       return;
     }
 
-    if (state.candidateHits < 3 && formatName !== 'CODE_128') {
-      return;
-    }
-
-    state.lastAcceptedCode = code;
+    state.lastAcceptedCode = normalized;
     state.lastAcceptedAt = now;
-    state.readCooldownUntil = now + 4000;
-    resetDetectionBuffer();
-    setStatus('success', 'Conteudo lido: ' + code);
-    await stopScanner();
+    setStatus('success', 'Codigo detectado: ' + normalized);
+    await stopScanner({ keepStatus: true });
     playSuccessFeedback();
-    showResultModal(code);
+    showResultModal(normalized, formatName);
   }
 
-  function handleFailure() {
-    const now = Date.now();
+  function describeCameraError(error) {
+    const message = String(error && error.message ? error.message : error);
+    const name = String(error && error.name ? error.name : '');
 
-    if (now < state.readCooldownUntil) {
-      return;
+    if (name === 'NotAllowedError' || message.includes('Permission denied')) {
+      return { type: 'denied' };
     }
 
-    if (state.isScanning) {
-      updateGuidanceFromFailure();
-    }
-  }
-
-  async function ensureCameraPermission() {
-    if (!navigator.permissions || !navigator.permissions.query) {
-      return;
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+      return { type: 'noCamera' };
     }
 
-    try {
-      const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-      if (permissionStatus.state === 'denied') {
-        throw new Error('PERMISSION_DENIED');
-      }
-    } catch (error) {
-      if (error.message === 'PERMISSION_DENIED') {
-        throw error;
-      }
-    }
-  }
-
-  function createScanner() {
-    if (!state.scanner) {
-      state.scanner = new Html5Qrcode('reader', {
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: false
-        },
-        formatsToSupport: supportedFormats,
-        verbose: false
-      });
+    if (name === 'NotReadableError' || name === 'TrackStartError' || message.includes('Could not start video source')) {
+      return { type: 'unavailable' };
     }
 
-    return state.scanner;
-  }
+    if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+      return { type: 'unavailable', text: 'A configuracao da camera nao foi aceita pelo aparelho. Tentamos um fallback, mas a camera nao iniciou.' };
+    }
 
-  async function startScannerWithConfig(cameraConfig, scanConfig, guidanceText) {
-    const scanner = createScanner();
-    await scanner.start(cameraConfig, scanConfig, handleSuccess, handleFailure);
-    await applyPlatformCameraTuning(scanner);
-    state.isScanning = true;
-    setStatus('reading', guidanceText);
+    return { type: 'initError', text: 'Detalhe: ' + message };
   }
 
   async function startScanner() {
@@ -428,128 +498,88 @@
     }
 
     hideResultModal();
-    resetDetectionBuffer();
-    state.lastFailureNoticeAt = 0;
+    await stopScanner({ keepStatus: true });
+    resultInline.classList.add('hidden');
     state.isStarting = true;
-    setStatus('guiding');
+    state.lastFailureNoticeAt = 0;
+    setStatus('requesting');
     setButtons();
 
-    if (!isScannerSupported()) {
+    if (!isEnvironmentReady()) {
       state.isStarting = false;
-      setStatus('unsupported');
+      setStatus('insecure');
       setButtons();
       return;
     }
 
     try {
-      await ensureCameraPermission();
-      await preparePreferredCamera();
-      const stageWidth = Math.min(videoStage.clientWidth || window.innerWidth, 420);
-      const stageHeight = Math.min(videoStage.clientHeight || Math.round(window.innerHeight * 0.72), 560);
-      const qrBoxFactory = function (viewfinderWidth, viewfinderHeight) {
-        const width = Math.min(viewfinderWidth * 0.82, 340);
-        const height = Math.min(viewfinderHeight * 0.26, 160);
-        return {
-          width: Math.max(220, Math.round(width)),
-          height: Math.max(96, Math.round(height))
-        };
-      };
+      prepareVideoElement();
+      const stream = await requestBestAvailableStream();
+      const reader = new ZXingApi.BrowserMultiFormatReader(hints, {
+        delayBetweenScanAttempts: 180,
+        delayBetweenScanSuccess: 500
+      });
 
-      await startScannerWithConfig(
-        state.preferredCameraId || { facingMode: { ideal: 'environment' } },
-        {
-          aspectRatio: stageWidth / stageHeight,
-          disableFlip: false,
-          fps: 10,
-          qrbox: qrBoxFactory,
-          videoConstraints: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: isIosDevice() ? 1920 : 1280 },
-            height: { ideal: isIosDevice() ? 1080 : 720 }
-          }
+      state.stream = stream;
+      state.reader = reader;
+      setStatus('guiding');
+
+      const controls = await reader.decodeFromStream(stream, previewVideo, function (result, error) {
+        if (result) {
+          finalizeSuccessfulRead(result.getText(), result.getBarcodeFormat ? getFormatLabel(result.getBarcodeFormat()) : '');
+          return;
         }
-      );
+
+        if (error && !isTransientDecodeError(error)) {
+          console.error('Falha da biblioteca ZXing.', error);
+          stopScanner({ keepStatus: true }).then(function () {
+            setStatus('libraryError', 'O leitor encontrou um erro inesperado durante a leitura. Tente novamente.');
+          }).catch(function (stopError) {
+            console.error('Falha ao encerrar scanner apos erro da biblioteca.', stopError);
+            setStatus('libraryError');
+          });
+          return;
+        }
+
+        if (state.isScanning) {
+          updateGuidanceFromFailure();
+        }
+      });
+
+      state.controls = controls;
+      state.isScanning = true;
+      state.isStarting = false;
+      setStatus('reading');
+      startScanTimeout();
     } catch (error) {
-      console.error('Falha ao iniciar a leitura.', error);
-      const message = String(error && error.message ? error.message : error);
-
-      if (message.includes('Permission denied') || message.includes('NotAllowedError') || message === 'PERMISSION_DENIED') {
-        setStatus('denied');
-      } else if (message.includes('NotFoundError') || message.includes('OverconstrainedError')) {
-        try {
-          await startScannerWithConfig(
-            { facingMode: 'environment' },
-            {
-              disableFlip: false,
-              fps: 10,
-              qrbox: { width: 300, height: 120 },
-              videoConstraints: {
-                facingMode: { ideal: 'environment' },
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-              }
-            },
-            'A camera traseira foi selecionada por preferencia. Se a leitura falhar, confira se outra camera nao foi aberta.'
-          );
-        } catch (fallbackError) {
-          console.error('Falha no fallback da camera.', fallbackError);
-          setStatus('unavailable');
-        }
-      } else if (message.includes('NotReadableError') || message.includes('AbortError')) {
-        setStatus('unavailable');
-      } else {
-        setStatus('initError');
-      }
+      console.error('Falha ao iniciar o scanner.', error);
+      const cameraError = describeCameraError(error);
+      state.isStarting = false;
+      await disposeScannerInternals();
+      setStatus(cameraError.type, cameraError.text);
     } finally {
       state.isStarting = false;
       setButtons();
     }
   }
 
-  async function copyCode() {
-    const code = resultCode.textContent.trim();
-
-    if (!code || code === '-') {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(code);
-      resultCopy.textContent = 'Codigo copiado para a area de transferencia.';
-    } catch (error) {
-      console.warn('Falha ao copiar com a API de clipboard.', error);
-
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(resultCode);
-      selection.removeAllRanges();
-      selection.addRange(range);
-
-      try {
-        document.execCommand('copy');
-        resultCopy.textContent = 'Codigo copiado para a area de transferencia.';
-      } catch (copyError) {
-        resultCopy.textContent = 'Nao foi possivel copiar automaticamente. Selecione o codigo manualmente.';
-      }
-
-      selection.removeAllRanges();
-    }
-  }
-
   async function restartScanner() {
     hideResultModal();
-    await stopScanner();
-    setStatus('guiding');
+    await stopScanner({ keepStatus: true });
     await startScanner();
   }
 
   window.addEventListener('beforeunload', function () {
-    stopScanner().catch(function () {});
+    stopScanner({ keepStatus: true }).catch(function () {});
+  });
+
+  window.addEventListener('pagehide', function () {
+    stopScanner({ keepStatus: true }).catch(function () {});
   });
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
-      stopScanner().catch(function () {});
+      stopScanner({ keepStatus: true }).catch(function () {});
     }
   });
 
@@ -561,8 +591,9 @@
   });
 
   stopButton.addEventListener('click', function () {
-    stopScanner().then(function () {
-      setStatus('idle');
+    stopScanner().catch(function (error) {
+      console.error(error);
+      setStatus('initError');
     });
   });
 
@@ -573,18 +604,17 @@
     });
   });
 
-  copyButton.addEventListener('click', function () {
-    copyCode().catch(function () {
-      resultCopy.textContent = 'Nao foi possivel copiar automaticamente. Selecione o codigo manualmente.';
-    });
+  closeButton.addEventListener('click', function () {
+    hideResultModal();
+    setStatus('idle');
   });
 
   if (!window.isSecureContext) {
-    setStatus('unsupported', 'No iPhone, a camera so funciona de forma confiavel em HTTPS ou localhost. Gere um certificado local e abra o leitor em https://.');
-    startButton.disabled = true;
+    setStatus('insecure');
   } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setStatus('unsupported');
-    startButton.disabled = true;
+    setStatus('initError', 'Este navegador nao oferece suporte a captura de camera com getUserMedia.');
+  } else if (!window.ZXingBrowser || !window.ZXingBrowser.BrowserMultiFormatReader) {
+    setStatus('libraryError', 'A biblioteca ZXing nao foi carregada corretamente.');
   } else {
     setStatus('idle');
   }

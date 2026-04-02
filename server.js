@@ -15,9 +15,11 @@ const CERT_DIR = path.join(ROOT_DIR, 'certs');
 const HTTPS_KEY_PATH = process.env.HTTPS_KEY_PATH || path.join(CERT_DIR, 'dev-key.pem');
 const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH || path.join(CERT_DIR, 'dev-cert.pem');
 const VENDOR_CANDIDATES = {
-  '/vendor/html5-qrcode.min.js': [
-    path.join(ROOT_DIR, 'node_modules', 'html5-qrcode', 'html5-qrcode.min.js'),
-    path.join(ROOT_DIR, 'node_modules', 'html5-qrcode', 'minified', 'html5-qrcode.min.js')
+  '/vendor/zxing-browser.min.js': [
+    path.join(ROOT_DIR, 'node_modules', '@zxing', 'browser', 'umd', 'zxing-browser.min.js')
+  ],
+  '/vendor/zxing.min.js': [
+    path.join(ROOT_DIR, 'node_modules', '@zxing', 'library', 'umd', 'index.min.js')
   ]
 };
 

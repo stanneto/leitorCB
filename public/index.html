@@ -19,7 +19,9 @@
 
         <div class="camera-card">
           <div class="video-stage" id="video-stage">
-            <div id="reader" class="reader-surface"></div>
+            <div class="reader-surface">
+              <video id="camera-preview" class="camera-preview" muted playsinline></video>
+            </div>
             <div class="scan-guide" aria-hidden="true">
               <div class="scan-frame"></div>
               <div class="scan-line"></div>
@@ -42,21 +44,22 @@
 
     <div class="result-modal hidden" id="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
       <div class="result-card">
-        <p class="result-label">Conteudo lido</p>
-        <h2 id="result-title">Leitura concluida</h2>
-        <p class="result-copy">Valor identificado pelo leitor:</p>
+        <p class="result-label">Codigo lido</p>
+        <h2 id="result-title">Codigo lido</h2>
+        <p class="result-copy">Valor detectado:</p>
         <p class="result-code" id="result-code">-</p>
-        <p class="result-copy" id="result-copy">
-          O scanner foi pausado para evitar leituras duplicadas. Copie o valor ou inicie uma nova leitura.
+        <p class="result-copy" id="result-note">
+          Leitura concluida com sucesso.
         </p>
         <div class="actions actions-modal">
+          <button class="button button-secondary" id="close-button" type="button">Fechar</button>
           <button class="button button-primary" id="retry-button" type="button">Ler novamente</button>
-          <button class="button button-secondary" id="copy-button" type="button">Copiar codigo</button>
         </div>
       </div>
     </div>
 
-    <script src="/vendor/html5-qrcode.min.js"></script>
+    <script src="/vendor/zxing.min.js"></script>
+    <script src="/vendor/zxing-browser.min.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

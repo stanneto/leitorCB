@@ -1,7 +1,7 @@
 {
   "name": "leitor-patrimonial-https",
   "version": "1.0.0",
-  "description": "Leitor web de codigo de barras patrimonial com Node.js e foco em Code 128, com suporte a HTTPS local para iPhone.",
+  "description": "Leitor web de codigo de barras patrimonial com Node.js, ZXing e suporte a HTTPS local para iPhone.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,13 +12,15 @@
   "keywords": [
     "barcode",
     "code-128",
-    "http",
+    "https",
     "mobile",
-    "scanner"
+    "scanner",
+    "zxing"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "html5-qrcode": "^2.3.8"
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3"
   }
 }
