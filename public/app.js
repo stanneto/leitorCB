@@ -10,27 +10,23 @@
   const resultModal = document.getElementById('result-modal');
   const resultCode = document.getElementById('result-code');
   const resultNote = document.getElementById('result-note');
-  const resultInline = document.getElementById('result-inline');
   const resultInlineCode = document.getElementById('result-inline-code');
   const videoStage = document.getElementById('video-stage');
   const previewVideo = document.getElementById('camera-preview');
+  const scriptStatus = window.__scannerScriptStatus || {
+    zxingBrowserLoaded: false,
+    zxingBrowserFailed: false
+  };
 
   const ZXingApi = window.ZXingBrowser;
-  const ZXingCore = window.ZXing;
-  const supportedFormats = ZXingApi && ZXingCore ? [
-    ZXingCore.BarcodeFormat.EAN_13,
-    ZXingCore.BarcodeFormat.EAN_8,
-    ZXingCore.BarcodeFormat.CODE_128,
-    ZXingCore.BarcodeFormat.UPC_A,
-    ZXingCore.BarcodeFormat.UPC_E,
-    ZXingCore.BarcodeFormat.QR_CODE
+  const supportedFormats = ZXingApi ? [
+    ZXingApi.BarcodeFormat.EAN_13,
+    ZXingApi.BarcodeFormat.EAN_8,
+    ZXingApi.BarcodeFormat.CODE_128,
+    ZXingApi.BarcodeFormat.UPC_A,
+    ZXingApi.BarcodeFormat.UPC_E,
+    ZXingApi.BarcodeFormat.QR_CODE
   ] : [];
-
-  const hints = new Map();
-  if (window.ZXing && window.ZXing.DecodeHintType) {
-    hints.set(window.ZXing.DecodeHintType.POSSIBLE_FORMATS, supportedFormats);
-    hints.set(window.ZXing.DecodeHintType.TRY_HARDER, true);
-  }
 
   const statusCatalog = {
     idle: {
@@ -81,6 +77,10 @@
       pill: 'Falha no leitor',
       text: 'A biblioteca de leitura nao conseguiu processar a camera corretamente.'
     },
+    libraryLoadError: {
+      pill: 'Falha ao carregar leitor',
+      text: 'Nao foi possivel carregar os arquivos do leitor ZXing. Recarregue a pagina e confirme se o servidor esta entregando /vendor/zxing-browser.min.js.'
+    },
     stopped: {
       pill: 'Camera parada',
       text: 'Toque em Iniciar leitura para abrir a camera novamente.'
@@ -103,13 +103,13 @@
   };
 
   const formatLabels = {};
-  if (ZXingCore && ZXingCore.BarcodeFormat) {
-    formatLabels[ZXingCore.BarcodeFormat.EAN_13] = 'EAN-13';
-    formatLabels[ZXingCore.BarcodeFormat.EAN_8] = 'EAN-8';
-    formatLabels[ZXingCore.BarcodeFormat.CODE_128] = 'CODE-128';
-    formatLabels[ZXingCore.BarcodeFormat.UPC_A] = 'UPC-A';
-    formatLabels[ZXingCore.BarcodeFormat.UPC_E] = 'UPC-E';
-    formatLabels[ZXingCore.BarcodeFormat.QR_CODE] = 'QR Code';
+  if (ZXingApi && ZXingApi.BarcodeFormat) {
+    formatLabels[ZXingApi.BarcodeFormat.EAN_13] = 'EAN-13';
+    formatLabels[ZXingApi.BarcodeFormat.EAN_8] = 'EAN-8';
+    formatLabels[ZXingApi.BarcodeFormat.CODE_128] = 'CODE-128';
+    formatLabels[ZXingApi.BarcodeFormat.UPC_A] = 'UPC-A';
+    formatLabels[ZXingApi.BarcodeFormat.UPC_E] = 'UPC-E';
+    formatLabels[ZXingApi.BarcodeFormat.QR_CODE] = 'QR Code';
   }
 
   function isIosDevice() {
@@ -136,7 +136,6 @@
       window.isSecureContext &&
       navigator.mediaDevices &&
       navigator.mediaDevices.getUserMedia &&
-      window.ZXing &&
       window.ZXingBrowser &&
       window.ZXingBrowser.BrowserMultiFormatReader
     );
@@ -372,6 +371,15 @@
     return normalizeDecodedText(text).length > 0;
   }
 
+  function isSupportedFormat(formatName) {
+    return formatName === 'EAN-13' ||
+      formatName === 'EAN-8' ||
+      formatName === 'CODE-128' ||
+      formatName === 'UPC-A' ||
+      formatName === 'UPC-E' ||
+      formatName === 'QR Code';
+  }
+
   function playSuccessFeedback() {
     if (navigator.vibrate) {
       navigator.vibrate(90);
@@ -380,8 +388,7 @@
 
   function showResultModal(code, formatName) {
     resultCode.textContent = code;
-    resultInlineCode.textContent = code;
-    resultInline.classList.remove('hidden');
+    resultInlineCode.value = code;
     resultNote.textContent = formatName ? 'Formato detectado: ' + formatName : 'Leitura concluida com sucesso.';
     resultModal.classList.remove('hidden');
     document.body.classList.add('modal-open');
@@ -441,7 +448,7 @@
     const normalized = normalizeDecodedText(text);
     const now = Date.now();
 
-    if (!isValidDetectedCode(normalized)) {
+    if (!isValidDetectedCode(normalized) || !isSupportedFormat(formatName)) {
       return;
     }
 
@@ -499,7 +506,6 @@
 
     hideResultModal();
     await stopScanner({ keepStatus: true });
-    resultInline.classList.add('hidden');
     state.isStarting = true;
     state.lastFailureNoticeAt = 0;
     setStatus('requesting');
@@ -515,7 +521,7 @@
     try {
       prepareVideoElement();
       const stream = await requestBestAvailableStream();
-      const reader = new ZXingApi.BrowserMultiFormatReader(hints, {
+      const reader = new ZXingApi.BrowserMultiFormatReader(undefined, {
         delayBetweenScanAttempts: 180,
         delayBetweenScanSuccess: 500
       });
@@ -613,8 +619,10 @@
     setStatus('insecure');
   } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     setStatus('initError', 'Este navegador nao oferece suporte a captura de camera com getUserMedia.');
+  } else if (scriptStatus.zxingBrowserFailed) {
+    setStatus('libraryLoadError');
   } else if (!window.ZXingBrowser || !window.ZXingBrowser.BrowserMultiFormatReader) {
-    setStatus('libraryError', 'A biblioteca ZXing nao foi carregada corretamente.');
+    setStatus('libraryError', 'O script do ZXing foi carregado, mas a API do leitor nao ficou disponivel. Recarregue a pagina e tente novamente.');
   } else {
     setStatus('idle');
   }

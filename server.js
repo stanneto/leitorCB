@@ -17,9 +17,6 @@ const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH || path.join(CERT_DIR, 'dev-
 const VENDOR_CANDIDATES = {
   '/vendor/zxing-browser.min.js': [
     path.join(ROOT_DIR, 'node_modules', '@zxing', 'browser', 'umd', 'zxing-browser.min.js')
-  ],
-  '/vendor/zxing.min.js': [
-    path.join(ROOT_DIR, 'node_modules', '@zxing', 'library', 'umd', 'index.min.js')
   ]
 };
 

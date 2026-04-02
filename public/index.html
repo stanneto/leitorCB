@@ -34,13 +34,20 @@
           <button class="button button-secondary" id="stop-button" type="button" disabled>Parar camera</button>
         </div>
 
-        <section class="result-inline hidden" id="result-inline" aria-live="polite">
-          <p class="result-inline-label">Conteudo lido</p>
-          <p class="result-inline-code" id="result-inline-code">-</p>
-        </section>
-
       </section>
     </main>
+
+    <section class="result-dock" aria-live="polite">
+      <label class="result-inline-label" for="result-inline-code">Conteudo lido</label>
+      <input
+        class="result-inline-input"
+        id="result-inline-code"
+        type="text"
+        value=""
+        placeholder="O valor lido aparecera aqui"
+        readonly
+      >
+    </section>
 
     <div class="result-modal hidden" id="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
       <div class="result-card">
@@ -58,8 +65,17 @@
       </div>
     </div>
 
-    <script src="/vendor/zxing.min.js"></script>
-    <script src="/vendor/zxing-browser.min.js"></script>
+    <script>
+      window.__scannerScriptStatus = {
+        zxingBrowserLoaded: false,
+        zxingBrowserFailed: false
+      };
+    </script>
+    <script
+      src="/vendor/zxing-browser.min.js"
+      onload="window.__scannerScriptStatus.zxingBrowserLoaded = true"
+      onerror="window.__scannerScriptStatus.zxingBrowserFailed = true"
+    ></script>
     <script src="/app.js"></script>
   </body>
 </html>
