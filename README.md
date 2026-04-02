@@ -1,10 +1,10 @@
-# Leitor Patrimonial HTTPS
+# Leitor Patrimonial HTTP
 
-Projeto completo em Node.js com frontend web responsivo e mobile-first para leitura de etiquetas patrimoniais por camera, com foco em **Code 128** e fluxo preparado para **iPhone** e **Android** em **HTTPS**.
+Projeto completo em Node.js com frontend web responsivo e mobile-first para leitura de etiquetas patrimoniais por camera, com foco em **Code 128**.
 
 ## Recursos
 
-- Servidor local HTTPS em Node.js, sem dependencias de backend extras
+- Servidor local HTTP em Node.js, sem dependencias de backend extras
 - Interface web mobile-first com guia visual central
 - Solicitacao correta de permissao de camera
 - Preferencia pela camera traseira
@@ -19,8 +19,6 @@ Projeto completo em Node.js com frontend web responsivo e mobile-first para leit
 
 ```text
 .
-|-- certs/
-|   |-- .gitkeep
 |-- public/
 |   |-- app.js
 |   |-- index.html
@@ -42,65 +40,7 @@ npm install
 
 Isso instala a biblioteca `html5-qrcode`, usada no navegador para leitura de codigo de barras com foco em boa compatibilidade mobile.
 
-## 2. Como gerar ou configurar certificados HTTPS locais
-
-O servidor espera estes arquivos:
-
-- `certs/localhost-key.pem`
-- `certs/localhost.pem`
-
-### Opcao A: usando o script Node incluido
-
-O projeto ja inclui um gerador de certificado PEM sem OpenSSL:
-
-```bash
-npm run generate-cert
-```
-
-Ele cria:
-
-- `certs/localhost-key.pem`
-- `certs/localhost.pem`
-
-E inclui automaticamente:
-
-- `localhost`
-- `127.0.0.1`
-- os IPs IPv4 locais ativos da maquina no momento da geracao
-
-Se o IP da maquina mudar, gere novamente.
-
-### Opcao B: usando `mkcert`
-
-1. Instale o `mkcert`.
-2. Rode:
-
-```bash
-mkcert -install
-mkcert -key-file certs/localhost-key.pem -cert-file certs/localhost.pem localhost 127.0.0.1 ::1 192.168.0.10 192.168.0.11
-```
-
-Troque ou acrescente os IPs da sua rede local. Para descobrir os IPs locais:
-
-```bash
-npm run local-ip
-```
-
-### Opcao C: usando OpenSSL
-
-```bash
-openssl req -x509 -newkey rsa:2048 -sha256 -days 365 -nodes ^
-  -keyout certs/localhost-key.pem ^
-  -out certs/localhost.pem ^
-  -subj "/CN=localhost" ^
-  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:192.168.0.10"
-```
-
-Troque `192.168.0.10` pelo IP atual da maquina. Para acesso do celular, o IP precisa estar presente no certificado.
-
-Se o PowerShell bloquear o comando `npm`, use `npm.cmd` no lugar no terminal atual.
-
-## 3. Como iniciar o servidor HTTPS
+## 2. Como iniciar o servidor HTTP
 
 ```bash
 npm start
@@ -108,60 +48,43 @@ npm start
 
 O terminal exibira URLs como:
 
-- `https://localhost:3443`
-- `https://192.168.x.x:3443`
+- `http://localhost:3000`
+- `http://192.168.x.x:3000`
 
 Tambem existe o endpoint:
 
-- `https://localhost:3443/health`
+- `http://localhost:3000/health`
 
-## 4. Como acessar pelo computador
+## 3. Como acessar pelo computador
 
 Abra:
 
 ```text
-https://localhost:3443
+http://localhost:3000
 ```
 
-## 5. Como acessar pelo iPhone e Android na mesma rede Wi-Fi
+## 4. Como acessar pelo iPhone e Android na mesma rede Wi-Fi
 
 1. Conecte o computador e o celular na mesma rede Wi-Fi.
 2. Descubra o IP local do computador com `npm run local-ip`.
-3. Gere o certificado incluindo esse IP no `subjectAltName`.
-4. Inicie o servidor com `npm start`.
-5. No celular, abra:
+3. Inicie o servidor com `npm start`.
+4. No celular, abra:
 
 ```text
-https://SEU-IP-LOCAL:3443
+http://SEU-IP-LOCAL:3000
 ```
 
-## 6. Como confiar no certificado local no celular
+## 5. Limitacoes conhecidas
 
-### iPhone
-
-1. Gere o certificado com `mkcert` ou exporte a CA usada.
-2. Envie o certificado confiavel para o iPhone.
-3. Instale o perfil no aparelho.
-4. Va em `Ajustes > Geral > Sobre > Ajustes de Confianca de Certificados`.
-5. Habilite confianca total para o certificado.
-
-### Android
-
-1. Instale o certificado da autoridade emissora ou use o fluxo do `mkcert`.
-2. Em muitos aparelhos, basta aceitar o aviso do certificado para testes locais.
-3. Em aparelhos mais restritivos, instale o certificado em `Seguranca > Credenciais`.
-
-## 7. Limitacoes conhecidas do iOS
-
-- iOS exige HTTPS real para camera em navegadores baseados em WebKit.
+- iPhone e iPad normalmente exigem HTTPS real para liberar camera em navegadores baseados em WebKit.
+- Em Android, muitos navegadores tambem bloqueiam camera em HTTP fora de `localhost`.
 - Safari, Chrome, Edge e Firefox no iPhone compartilham as mesmas limitacoes de motor.
-- Controle fino de foco e zoom varia por aparelho e versao do iOS.
-- Se o certificado nao for confiavel, a camera pode falhar ou a permissao pode nao ser concedida.
+- Controle fino de foco e zoom varia por aparelho e versao do sistema.
 - Em segundo plano, o navegador pode suspender o video; o projeto interrompe o stream para evitar inconsistencias.
 
-## 8. Como testar a leitura da etiqueta patrimonial anexa
+## 6. Como testar a leitura da etiqueta patrimonial anexa
 
-1. Abra a pagina no celular por HTTPS.
+1. Abra a pagina no navegador.
 2. Toque em `Iniciar leitura`.
 3. Permita o acesso a camera.
 4. Posicione a etiqueta na moldura central.
@@ -175,7 +98,7 @@ https://SEU-IP-LOCAL:3443
 
 O projeto usa:
 
-- `getUserMedia` em HTTPS
+- `getUserMedia`
 - preferencia por `facingMode: environment`
 - `html5-qrcode` com `BarcodeDetector` nativo desativado para manter comportamento previsivel no iPhone
 - area de leitura central reduzida para melhorar desempenho e confiabilidade
@@ -192,6 +115,6 @@ O projeto usa:
 
 ## Observacoes de producao
 
-- Para uso interno mais estavel, prefira certificado confiado pela empresa, `mkcert` em ambiente controlado ou proxy HTTPS.
+- Se voce precisar de camera em celulares reais fora de `localhost`, HTTPS continua sendo o caminho mais confiavel.
 - Se quiser maximizar a leitura da etiqueta patrimonial, teste a distancia ideal do aparelho e a iluminacao do ambiente real.
 - Se algum aparelho abrir a camera frontal, revise se o navegador respeitou `environment`; alguns dispositivos antigos tratam isso apenas como preferencia.

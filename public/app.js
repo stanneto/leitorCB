@@ -37,7 +37,7 @@
     },
     unsupported: {
       pill: 'Camera nao suportada neste navegador',
-      text: 'Use Safari, Chrome, Edge ou Firefox atualizados em HTTPS, com permissao de camera habilitada.'
+      text: 'Use um navegador moderno com acesso liberado a camera. Em muitos aparelhos, HTTP permite camera apenas em localhost.'
     },
     denied: {
       pill: 'Permissao de camera negada',
@@ -67,6 +67,7 @@
     isStarting: false,
     isScanning: false,
     isStopping: false,
+    preferredCameraId: '',
     readCooldownUntil: 0,
     lastFailureNoticeAt: 0,
     candidateText: '',
@@ -97,6 +98,80 @@
 
   function normalizeDecodedText(decodedText) {
     return String(decodedText || '').trim();
+  }
+
+  function stopStream(stream) {
+    if (!stream) {
+      return;
+    }
+
+    for (const track of stream.getTracks()) {
+      track.stop();
+    }
+  }
+
+  function scoreCameraLabel(label) {
+    const normalized = String(label || '').toLowerCase();
+    let score = 0;
+
+    if (normalized.includes('back') || normalized.includes('rear') || normalized.includes('traseira')) {
+      score += 8;
+    }
+
+    if (normalized.includes('environment')) {
+      score += 6;
+    }
+
+    if (normalized.includes('wide')) {
+      score += 2;
+    }
+
+    if (normalized.includes('front') || normalized.includes('frontal') || normalized.includes('user')) {
+      score -= 10;
+    }
+
+    return score;
+  }
+
+  function pickBestCamera(cameras) {
+    if (!Array.isArray(cameras) || cameras.length === 0) {
+      return null;
+    }
+
+    const ranked = cameras
+      .map(function (camera) {
+        return {
+          camera: camera,
+          score: scoreCameraLabel(camera.label)
+        };
+      })
+      .sort(function (left, right) {
+        return right.score - left.score;
+      });
+
+    return ranked[0].camera;
+  }
+
+  async function preparePreferredCamera() {
+    let permissionProbeStream = null;
+
+    try {
+      permissionProbeStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+
+      const cameras = await Html5Qrcode.getCameras();
+      const preferredCamera = pickBestCamera(cameras);
+
+      state.preferredCameraId = preferredCamera ? preferredCamera.id : '';
+    } finally {
+      stopStream(permissionProbeStream);
+    }
   }
 
   function isLikelyAssetCode(decodedText, result) {
@@ -305,25 +380,25 @@
 
     try {
       await ensureCameraPermission();
+      await preparePreferredCamera();
       const stageWidth = Math.min(videoStage.clientWidth || window.innerWidth, 420);
       const stageHeight = Math.min(videoStage.clientHeight || Math.round(window.innerHeight * 0.72), 560);
+      const qrBoxFactory = function (viewfinderWidth, viewfinderHeight) {
+        const width = Math.min(viewfinderWidth * 0.82, 340);
+        const height = Math.min(viewfinderHeight * 0.26, 160);
+        return {
+          width: Math.max(220, Math.round(width)),
+          height: Math.max(96, Math.round(height))
+        };
+      };
 
       await startScannerWithConfig(
-        { facingMode: { exact: 'environment' } },
+        state.preferredCameraId || { facingMode: { ideal: 'environment' } },
         {
           aspectRatio: stageWidth / stageHeight,
           disableFlip: false,
           fps: 10,
-          qrbox: function (viewfinderWidth, viewfinderHeight) {
-            const width = Math.min(viewfinderWidth * 0.82, 340);
-            const height = Math.min(viewfinderHeight * 0.26, 160);
-            return {
-              width: Math.max(220, Math.round(width)),
-              height: Math.max(96, Math.round(height))
-            };
-          },
-          rememberLastUsedCamera: true,
-          supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+          qrbox: qrBoxFactory
         }
       );
     } catch (error) {
@@ -339,9 +414,7 @@
             {
               disableFlip: false,
               fps: 10,
-              qrbox: { width: 300, height: 120 },
-              rememberLastUsedCamera: true,
-              supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+              qrbox: { width: 300, height: 120 }
             },
             'A camera traseira foi selecionada por preferencia. Se a leitura falhar, confira se outra camera nao foi aberta.'
           );
@@ -434,7 +507,7 @@
   });
 
   if (!window.isSecureContext) {
-    setStatus('unsupported', 'Este leitor precisa ser aberto em contexto seguro HTTPS ou localhost para acessar a camera.');
+    setStatus('unsupported', 'Este leitor esta em HTTP. Em muitos navegadores moveis a camera so funciona em localhost ou HTTPS.');
     startButton.disabled = true;
   } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     setStatus('unsupported');

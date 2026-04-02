@@ -1,4 +1,2 @@
 node_modules/
-certs/*.pem
-!.gitkeep
 *.log
