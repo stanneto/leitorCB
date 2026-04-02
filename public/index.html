@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <title>Leitor Patrimonial</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-card">
+        <div class="status-panel" aria-live="polite">
+          <span class="status-pill" id="status-pill">Aguardando permissao da camera</span>
+          <p class="status-text" id="status-text">
+            Toque em iniciar para liberar a camera, centralize a etiqueta e ajuste a distancia para manter as barras nitidas.
+          </p>
+        </div>
+
+        <div class="camera-card">
+          <div class="video-stage" id="video-stage">
+            <div id="reader" class="reader-surface"></div>
+            <div class="scan-guide" aria-hidden="true">
+              <div class="scan-frame"></div>
+              <div class="scan-line"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="button button-primary" id="start-button" type="button">Iniciar leitura</button>
+          <button class="button button-secondary" id="stop-button" type="button" disabled>Parar camera</button>
+        </div>
+
+        <section class="result-inline hidden" id="result-inline" aria-live="polite">
+          <p class="result-inline-label">Conteudo lido</p>
+          <p class="result-inline-code" id="result-inline-code">-</p>
+        </section>
+
+      </section>
+    </main>
+
+    <div class="result-modal hidden" id="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
+      <div class="result-card">
+        <p class="result-label">Codigo detectado com sucesso</p>
+        <h2 id="result-title">Leitura concluida</h2>
+        <p class="result-code" id="result-code">-</p>
+        <p class="result-copy" id="result-copy">
+          O scanner foi pausado para evitar leituras duplicadas. Copie o valor ou inicie uma nova leitura.
+        </p>
+        <div class="actions actions-modal">
+          <button class="button button-primary" id="retry-button" type="button">Ler novamente</button>
+          <button class="button button-secondary" id="copy-button" type="button">Copiar codigo</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/vendor/html5-qrcode.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
