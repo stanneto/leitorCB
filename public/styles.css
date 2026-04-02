@@ -174,16 +174,15 @@ h1 {
 .reader-surface {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
+  overflow: hidden;
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.35)),
     #020617;
 }
 
 .camera-preview {
-  display: block;
+  position: absolute;
+  inset: 0;
   object-fit: cover;
   object-position: center center;
   background: #020617;
