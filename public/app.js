@@ -576,20 +576,27 @@
     }
 
     const linearWide = {
-      sx: Math.round(frameWidth * 0.12),
+      sx: Math.round(frameWidth * 0.08),
       sy: Math.round(frameHeight * 0.38),
-      sw: Math.round(frameWidth * 0.76),
+      sw: Math.round(frameWidth * 0.84),
       sh: Math.round(frameHeight * 0.18)
     };
 
-    const linearTall = {
-      sx: Math.round(frameWidth * 0.16),
+    const linearMedium = {
+      sx: Math.round(frameWidth * 0.12),
       sy: Math.round(frameHeight * 0.30),
-      sw: Math.round(frameWidth * 0.68),
-      sh: Math.round(frameHeight * 0.30)
+      sw: Math.round(frameWidth * 0.76),
+      sh: Math.round(frameHeight * 0.28)
     };
 
-    const squareSize = Math.round(Math.min(frameWidth, frameHeight) * 0.56);
+    const linearFull = {
+      sx: Math.round(frameWidth * 0.04),
+      sy: Math.round(frameHeight * 0.24),
+      sw: Math.round(frameWidth * 0.92),
+      sh: Math.round(frameHeight * 0.42)
+    };
+
+    const squareSize = Math.round(Math.min(frameWidth, frameHeight) * 0.68);
     const centerSquare = {
       sx: Math.round((frameWidth - squareSize) / 2),
       sy: Math.round((frameHeight - squareSize) / 2),
@@ -597,12 +604,20 @@
       sh: squareSize
     };
 
-    return [linearWide, linearTall, centerSquare];
+    const fullFrame = {
+      sx: 0,
+      sy: 0,
+      sw: frameWidth,
+      sh: frameHeight
+    };
+
+    return [linearWide, linearMedium, linearFull, centerSquare, fullFrame];
   }
 
   function drawDecodeRegion(region) {
-    const targetWidth = Math.max(320, region.sw);
-    const targetHeight = Math.max(160, region.sh);
+    const isLinearRegion = region.sw > region.sh;
+    const targetWidth = isLinearRegion ? Math.max(960, region.sw) : Math.max(720, region.sw);
+    const targetHeight = isLinearRegion ? Math.max(260, region.sh) : Math.max(720, region.sh);
     const canvas = ensureCaptureCanvas(targetWidth, targetHeight);
 
     state.captureContext.drawImage(
