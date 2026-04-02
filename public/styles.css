@@ -257,6 +257,12 @@ h1 {
   margin-top: 18px;
 }
 
+.actions-scanner {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
 .button {
   appearance: none;
   border: 0;
@@ -267,6 +273,14 @@ h1 {
   cursor: pointer;
   transition: transform 160ms ease, opacity 160ms ease;
 }
+
+.actions-scanner .button {
+  min-width: 0;
+  padding: 14px 10px;
+  font-size: clamp(0.82rem, 2.5vw, 0.96rem);
+  line-height: 1.2;
+  text-align: center;
+ }
 
 .button:hover:not(:disabled),
 .button:focus-visible:not(:disabled) {
@@ -388,7 +402,7 @@ body.modal-open {
 }
 
 @media (max-width: 600px) {
-  .actions {
+  .actions-modal {
     flex-direction: column;
   }
 

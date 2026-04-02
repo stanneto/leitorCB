@@ -8,6 +8,7 @@
   const diagnosticMessage = document.getElementById('diagnostic-message');
   const startButton = document.getElementById('start-button');
   const stopButton = document.getElementById('stop-button');
+  const torchButton = document.getElementById('torch-button');
   const retryButton = document.getElementById('retry-button');
   const closeButton = document.getElementById('close-button');
   const resultModal = document.getElementById('result-modal');
@@ -104,7 +105,9 @@
     lastAcceptedCode: '',
     lastAcceptedAt: 0,
     lastFailureNoticeAt: 0,
-    scanActivatedAt: 0
+    scanActivatedAt: 0,
+    torchAvailable: false,
+    isTorchOn: false
   };
 
   const formatLabels = {};
@@ -149,6 +152,8 @@
   function setButtons() {
     startButton.disabled = state.isStarting || state.isScanning || !isEnvironmentReady();
     stopButton.disabled = !state.isScanning || state.isStopping;
+    torchButton.disabled = !state.isScanning || state.isStopping || !state.torchAvailable;
+    torchButton.textContent = state.isTorchOn ? 'Desligar lanterna' : 'Ligar a lanterna';
   }
 
   function isEnvironmentReady() {
@@ -509,6 +514,8 @@
 
     state.reader = null;
     state.scanActivatedAt = 0;
+    state.torchAvailable = false;
+    state.isTorchOn = false;
     clearVideoElement();
     resetDetectionBuffer();
   }
@@ -659,6 +666,8 @@
       });
 
       state.controls = controls;
+      state.torchAvailable = typeof controls.switchTorch === 'function';
+      state.isTorchOn = false;
       state.isScanning = true;
       state.scanActivatedAt = Date.now();
       state.isStarting = false;
@@ -681,6 +690,26 @@
     hideResultModal();
     await stopScanner({ keepStatus: true });
     await startScanner();
+  }
+
+  async function toggleTorch() {
+    if (!state.isScanning || !state.controls || typeof state.controls.switchTorch !== 'function') {
+      return;
+    }
+
+    const nextTorchState = !state.isTorchOn;
+    torchButton.disabled = true;
+
+    try {
+      await state.controls.switchTorch(nextTorchState);
+      state.isTorchOn = nextTorchState;
+    } catch (error) {
+      console.warn('Nao foi possivel alternar a lanterna.', error);
+      showDiagnostic(error, 'Lanterna');
+      setStatus('reading', 'Nao foi possivel controlar a lanterna neste aparelho. A leitura pode continuar sem ela.');
+    } finally {
+      setButtons();
+    }
   }
 
   window.addEventListener('beforeunload', function () {
@@ -706,6 +735,13 @@
 
   stopButton.addEventListener('click', function () {
     stopScanner().catch(function (error) {
+      console.error(error);
+      setStatus('initError');
+    });
+  });
+
+  torchButton.addEventListener('click', function () {
+    toggleTorch().catch(function (error) {
       console.error(error);
       setStatus('initError');
     });
