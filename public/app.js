@@ -393,7 +393,8 @@
         const minZoom = typeof capabilities.zoom.min === 'number' ? capabilities.zoom.min : 1;
         const maxZoom = capabilities.zoom.max;
         if (maxZoom > minZoom) {
-          advanced.push({ zoom: Math.min(maxZoom, Math.max(minZoom, 1.6)) });
+          const preferredZoom = isIosDevice() ? 1.15 : 1.1;
+          advanced.push({ zoom: Math.min(maxZoom, Math.max(minZoom, preferredZoom)) });
         }
       }
 
@@ -626,6 +627,10 @@
         delayBetweenScanAttempts: 180,
         delayBetweenScanSuccess: 500
       });
+
+      if (supportedFormats.length > 0) {
+        reader.possibleFormats = supportedFormats;
+      }
 
       state.stream = stream;
       state.reader = reader;
