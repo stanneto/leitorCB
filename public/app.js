@@ -32,7 +32,7 @@
 
   const statusCatalog = {
     idle: {
-      pill: 'Pronto para leitura',
+      pill: '',
       text: 'Toque em Iniciar leitura para liberar a câmera e posicionar o codigo de barras na moldura.'
     },
     requesting: {
@@ -164,8 +164,10 @@
   function setStatus(type, overrideText) {
     const content = statusCatalog[type] || statusCatalog.idle;
     const nextText = overrideText !== undefined ? overrideText : content.text;
+    const nextPill = normalizeUiText(content.pill);
 
-    statusPill.textContent = normalizeUiText(content.pill);
+    statusPill.textContent = nextPill;
+    statusPill.classList.toggle('hidden', !nextPill);
     statusText.textContent = normalizeUiText(nextText);
     statusText.classList.toggle('hidden', !nextText);
   }

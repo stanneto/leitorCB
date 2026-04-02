@@ -148,7 +148,7 @@ h1 {
 
 .camera-card {
   position: relative;
-  width: min(100%, 430px);
+  width: min(100%, 560px);
   margin-left: auto;
   margin-right: auto;
   overflow: hidden;
@@ -190,15 +190,16 @@ h1 {
 .scan-guide {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
   pointer-events: none;
 }
 
 .scan-frame {
-  position: relative;
-  width: min(62vw, 250px);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(76vw, 320px);
   height: min(24vw, 110px);
+  transform: translate(-50%, -50%);
   border-radius: 22px;
   border: 2px solid rgba(255, 255, 255, 0.82);
   box-shadow:
@@ -218,8 +219,11 @@ h1 {
 
 .scan-line {
   position: absolute;
+  left: 50%;
+  top: 50%;
   width: min(68vw, 280px);
   height: 3px;
+  transform: translate(-50%, -52px);
   border-radius: 999px;
   background: linear-gradient(90deg, transparent, rgba(74, 222, 128, 0.95), transparent);
   animation: sweep 2.2s linear infinite;
@@ -227,9 +231,9 @@ h1 {
 }
 
 @keyframes sweep {
-  0% { transform: translateY(-52px); }
-  50% { transform: translateY(52px); }
-  100% { transform: translateY(-52px); }
+  0% { transform: translate(-50%, -52px); }
+  50% { transform: translate(-50%, 52px); }
+  100% { transform: translate(-50%, -52px); }
 }
 
 .video-overlay {
