@@ -184,7 +184,7 @@ h1 {
 
 .camera-preview {
   display: block;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center center;
   background: #020617;
 }
