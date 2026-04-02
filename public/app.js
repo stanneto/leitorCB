@@ -3,6 +3,9 @@
 
   const statusPill = document.getElementById('status-pill');
   const statusText = document.getElementById('status-text');
+  const diagnosticPanel = document.getElementById('diagnostic-panel');
+  const diagnosticName = document.getElementById('diagnostic-name');
+  const diagnosticMessage = document.getElementById('diagnostic-message');
   const startButton = document.getElementById('start-button');
   const stopButton = document.getElementById('stop-button');
   const retryButton = document.getElementById('retry-button');
@@ -27,11 +30,11 @@
   const statusCatalog = {
     idle: {
       pill: 'Pronto para leitura',
-      text: 'Toque em Iniciar leitura para liberar a camera e posicionar o codigo de barras na moldura.'
+      text: 'Toque em Iniciar leitura para liberar a câmera e posicionar o codigo de barras na moldura.'
     },
     requesting: {
-      pill: 'Solicitando camera',
-      text: 'Confirme a permissao no navegador para usar a camera traseira.'
+      pill: 'Solicitando câmera',
+      text: 'Confirme a permissao no navegador para usar a câmera traseira.'
     },
     guiding: {
       pill: 'Posicione o codigo de barras',
@@ -51,27 +54,27 @@
     },
     insecure: {
       pill: 'HTTPS necessario',
-      text: 'No iPhone, a camera exige HTTPS ou localhost. Abra este app em https:// para testar de forma confiavel.'
+      text: 'No iPhone, a câmera exige HTTPS ou localhost. Abra este app em https:// para testar de forma confiavel.'
     },
     denied: {
       pill: 'Permissao negada',
-      text: 'Libere o acesso a camera nas configuracoes do navegador e tente novamente.'
+      text: 'Libere o acesso a câmera nas configuracoes do navegador e tente novamente.'
     },
     noCamera: {
-      pill: 'Nenhuma camera encontrada',
-      text: 'Nao foi encontrada uma camera disponivel neste aparelho.'
+      pill: 'Nenhuma câmera encontrada',
+      text: 'Nao foi encontrada uma câmera disponivel neste aparelho.'
     },
     unavailable: {
-      pill: 'Nao foi possivel acessar a camera',
-      text: 'Feche outros apps que estejam usando a camera e tente novamente.'
+      pill: 'Nao foi possivel acessar a câmera',
+      text: 'Feche outros apps que estejam usando a câmera e tente novamente.'
     },
     initError: {
       pill: 'Falha ao iniciar video',
-      text: 'O navegador nao conseguiu iniciar a visualizacao da camera com seguranca.'
+      text: 'O navegador nao conseguiu iniciar a visualizacao da câmera com seguranca.'
     },
     libraryError: {
       pill: 'Falha no leitor',
-      text: 'A biblioteca de leitura nao conseguiu processar a camera corretamente.'
+      text: 'A biblioteca de leitura nao conseguiu processar a câmera corretamente.'
     },
     libraryLoadError: {
       pill: 'Falha ao carregar leitor',
@@ -82,8 +85,8 @@
       text: 'O arquivo do ZXing foi entregue, mas a API do leitor nao ficou disponivel na pagina. Recarregue a pagina e tente novamente.'
     },
     stopped: {
-      pill: 'Camera parada',
-      text: 'Toque em Iniciar leitura para abrir a camera novamente.'
+      pill: 'Câmera parada',
+      text: 'Toque em Iniciar leitura para abrir a câmera novamente.'
     }
   };
 
@@ -97,9 +100,11 @@
     timeoutId: 0,
     candidateText: '',
     candidateHits: 0,
+    fatalDecodeHits: 0,
     lastAcceptedCode: '',
     lastAcceptedAt: 0,
-    lastFailureNoticeAt: 0
+    lastFailureNoticeAt: 0,
+    scanActivatedAt: 0
   };
 
   const formatLabels = {};
@@ -124,6 +129,21 @@
     const content = statusCatalog[type] || statusCatalog.idle;
     statusPill.textContent = content.pill;
     statusText.textContent = overrideText || content.text;
+  }
+
+  function hideDiagnostic() {
+    diagnosticName.textContent = '-';
+    diagnosticMessage.textContent = '-';
+    diagnosticPanel.classList.add('hidden');
+  }
+
+  function showDiagnostic(error, contextLabel) {
+    const errorName = String(error && error.name ? error.name : 'Erro sem nome');
+    const errorMessage = String(error && error.message ? error.message : error || 'Sem detalhes adicionais.');
+
+    diagnosticName.textContent = contextLabel ? contextLabel + ': ' + errorName : errorName;
+    diagnosticMessage.textContent = errorMessage;
+    diagnosticPanel.classList.remove('hidden');
   }
 
   function setButtons() {
@@ -206,6 +226,7 @@
   function resetDetectionBuffer() {
     state.candidateText = '';
     state.candidateHits = 0;
+    state.fatalDecodeHits = 0;
   }
 
   function normalizeDecodedText(decodedText) {
@@ -214,7 +235,32 @@
 
   function isTransientDecodeError(error) {
     const errorName = String(error && error.name ? error.name : '');
-    return errorName === 'NotFoundException' || errorName === 'ChecksumException' || errorName === 'FormatException';
+    const errorMessage = String(error && error.message ? error.message : '').toLowerCase();
+    const isClassicRetryable =
+      errorName === 'NotFoundException' ||
+      errorName === 'ChecksumException' ||
+      errorName === 'FormatException';
+
+    if (isClassicRetryable) {
+      return true;
+    }
+
+    const warmupWindowActive = state.scanActivatedAt > 0 && (Date.now() - state.scanActivatedAt) < 5000;
+    const looksLikeVideoWarmupIssue =
+      errorName === 'InvalidStateError' ||
+      errorName === 'IndexSizeError' ||
+      errorName === 'AbortError' ||
+      errorMessage.includes('video') ||
+      errorMessage.includes('canvas') ||
+      errorMessage.includes('source') ||
+      errorMessage.includes('not ready') ||
+      errorMessage.includes('not enough data') ||
+      errorMessage.includes('non-zero') ||
+      errorMessage.includes('width') ||
+      errorMessage.includes('height') ||
+      errorMessage.includes('play()');
+
+    return warmupWindowActive && looksLikeVideoWarmupIssue;
   }
 
   function stopTracks(stream) {
@@ -452,6 +498,7 @@
     }
 
     state.reader = null;
+    state.scanActivatedAt = 0;
     clearVideoElement();
     resetDetectionBuffer();
   }
@@ -505,6 +552,7 @@
 
     state.lastAcceptedCode = normalized;
     state.lastAcceptedAt = now;
+    hideDiagnostic();
     setStatus('success', 'Codigo detectado: ' + normalized);
     await stopScanner({ keepStatus: true });
     playSuccessFeedback();
@@ -540,6 +588,7 @@
     }
 
     hideResultModal();
+    hideDiagnostic();
     await stopScanner({ keepStatus: true });
     state.isStarting = true;
     state.lastFailureNoticeAt = 0;
@@ -566,34 +615,48 @@
       setStatus('guiding');
 
       const controls = await reader.decodeFromStream(stream, previewVideo, function (result, error) {
-        if (result) {
+      if (result) {
+          state.fatalDecodeHits = 0;
           finalizeSuccessfulRead(result.getText(), result.getBarcodeFormat ? getFormatLabel(result.getBarcodeFormat()) : '');
           return;
         }
 
         if (error && !isTransientDecodeError(error)) {
+          state.fatalDecodeHits += 1;
+
+          if (state.fatalDecodeHits < 3) {
+            console.warn('Erro de leitura tratado como instabilidade temporaria.', error);
+            updateGuidanceFromFailure();
+            return;
+          }
+
           console.error('Falha da biblioteca ZXing.', error);
+          showDiagnostic(error, 'ZXing');
           stopScanner({ keepStatus: true }).then(function () {
             setStatus('libraryError', 'O leitor encontrou um erro inesperado durante a leitura. Tente novamente.');
           }).catch(function (stopError) {
             console.error('Falha ao encerrar scanner apos erro da biblioteca.', stopError);
+            showDiagnostic(stopError, 'Encerramento');
             setStatus('libraryError');
           });
           return;
         }
 
         if (state.isScanning) {
+          state.fatalDecodeHits = 0;
           updateGuidanceFromFailure();
         }
       });
 
       state.controls = controls;
       state.isScanning = true;
+      state.scanActivatedAt = Date.now();
       state.isStarting = false;
       setStatus('reading');
       startScanTimeout();
     } catch (error) {
       console.error('Falha ao iniciar o scanner.', error);
+      showDiagnostic(error, 'Inicializacao');
       const cameraError = describeCameraError(error);
       state.isStarting = false;
       await disposeScannerInternals();
@@ -647,10 +710,13 @@
 
   closeButton.addEventListener('click', function () {
     hideResultModal();
+    hideDiagnostic();
     setStatus('idle');
   });
 
   async function initializePageState() {
+    hideDiagnostic();
+
     if (!window.isSecureContext) {
       setStatus('insecure');
       setButtons();
@@ -676,6 +742,7 @@
 
   initializePageState().catch(function (error) {
     console.error(error);
+    showDiagnostic(error, 'Inicializacao');
     setStatus('libraryError', 'Nao foi possivel concluir a verificacao inicial do leitor.');
     setButtons();
   });
