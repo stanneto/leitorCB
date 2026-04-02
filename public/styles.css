@@ -60,7 +60,8 @@ body {
 
 h1 {
   margin: 0;
-  font-size: clamp(2rem, 5vw, 3rem);
+  text-align: center;
+  font-size: clamp(1.35rem, 3.6vw, 2rem);
   line-height: 1.05;
 }
 

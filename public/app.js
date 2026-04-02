@@ -32,28 +32,28 @@
 
   const statusCatalog = {
     idle: {
-      pill: '',
-      text: 'Toque em Iniciar leitura para liberar a câmera e posicionar o codigo de barras na moldura.'
+      pill: 'Ative a câmera',
+      text: 'Toque em Iniciar leitura para liberar a câmera e posicionar o código de barras na moldura.'
     },
     requesting: {
       pill: 'Solicitando câmera',
       text: 'Confirme a permissao no navegador para usar a câmera traseira.'
     },
     guiding: {
-      pill: 'Posicione o codigo de barras',
-      text: 'Centralize o codigo na area de leitura, mantenha boa iluminacao e aproxime ate ficar nitido.'
+      pill: 'Posicione o código de barras',
+      text: 'Centralize o código na area de leitura, mantenha boa iluminacao e aproxime ate ficar nitido.'
     },
     reading: {
-      pill: 'Lendo codigo de barras',
+      pill: 'Lendo código de barras',
       text: 'Segure o aparelho com firmeza por alguns instantes enquanto a leitura acontece.'
     },
     success: {
-      pill: 'Codigo detectado',
+      pill: 'Código detectado',
       text: 'Leitura concluida com sucesso.'
     },
     timeout: {
       pill: 'Tempo de leitura encerrado',
-      text: 'Nao encontramos um codigo dentro do tempo esperado. Toque em Ler novamente e tente outra distancia.'
+      text: 'Nao encontramos um código dentro do tempo esperado. Toque em Ler novamente e tente outra distancia.'
     },
     insecure: {
       pill: 'HTTPS necessario',
@@ -153,6 +153,8 @@
 
   function normalizeUiText(text) {
     return String(text || '')
+      .replace(/cÃ¢mera/g, 'câmera')
+      .replace(/CÃ¢mera/g, 'Câmera')
       .replace(/cÃ¢mera/g, 'câmera')
       .replace(/CÃ¢mera/g, 'Câmera')
       .replace(/\bcamera\b/g, 'câmera')
@@ -715,7 +717,7 @@
       if (state.fatalDecodeHits >= 3) {
         console.warn('Falha de leitura mantida, mas o scanner seguira tentando ate o timeout.', outcome.error);
         showDiagnostic(outcome.error, 'ZXing');
-        setStatus('reading', 'O leitor ainda nao conseguiu decodificar o codigo. Ajuste distancia, foco e iluminacao; a tentativa continuara ate o tempo acabar.');
+        setStatus('reading', 'O leitor ainda nao conseguiu decodificar o código. Ajuste distancia, foco e iluminacao; a tentativa continuara ate o tempo acabar.');
         state.fatalDecodeHits = 0;
       } else {
         updateGuidanceFromFailure();
@@ -732,7 +734,7 @@
     const now = Date.now();
     if (now - state.lastFailureNoticeAt > 3500) {
       state.lastFailureNoticeAt = now;
-      setStatus('guiding', 'Posicione o codigo de barras dentro da moldura e aguarde o foco ficar nitido.');
+      setStatus('guiding', 'Posicione o código de barras dentro da moldura e aguarde o foco ficar nitido.');
     }
   }
 
@@ -939,7 +941,7 @@
     state.lastAcceptedCode = normalized;
     state.lastAcceptedAt = now;
     hideDiagnostic();
-    setStatus('success', 'Codigo detectado: ' + normalized);
+    setStatus('success', 'Código detectado: ' + normalized);
     await stopScanner({ keepStatus: true });
     playSuccessFeedback();
     showResultModal(normalized, formatName);

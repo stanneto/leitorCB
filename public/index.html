@@ -4,19 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#0f172a">
-    <title>Leitor Codigo de Barras</title>
+    <title>Leitor de Código de Barras</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <main class="app-shell">
       <section class="hero-card">
-        <h1>Leitor de Codigo de Barras</h1>
+        <h1>Leitor de Código de Barras</h1>
 
         <div class="status-panel" aria-live="polite">
-          <span class="status-pill" id="status-pill">Aguardando permissao da câmera</span>
+          <span class="status-pill" id="status-pill">Ative a câmera</span>
           <p class="status-text hidden" id="status-text"></p>
           <div class="diagnostic-panel hidden" id="diagnostic-panel" aria-live="polite">
-            <p class="diagnostic-title">Diagnostico do leitor</p>
+            <p class="diagnostic-title">Diagnóstico do leitor</p>
             <p class="diagnostic-line"><strong>Nome:</strong> <span id="diagnostic-name">-</span></p>
             <p class="diagnostic-line"><strong>Mensagem:</strong> <span id="diagnostic-message">-</span></p>
           </div>
@@ -55,12 +55,12 @@
 
     <div class="result-modal hidden" id="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
       <div class="result-card">
-        <p class="result-label">Codigo lido</p>
-        <h2 id="result-title">Codigo lido</h2>
+        <p class="result-label">Código lido</p>
+        <h2 id="result-title">Código lido</h2>
         <p class="result-copy">Valor detectado:</p>
         <p class="result-code" id="result-code">-</p>
         <p class="result-copy" id="result-note">
-          Leitura concluida com sucesso.
+          Leitura concluída com sucesso.
         </p>
         <div class="actions actions-modal">
           <button class="button button-secondary" id="close-button" type="button">Fechar</button>
