@@ -13,10 +13,6 @@
   const resultInlineCode = document.getElementById('result-inline-code');
   const videoStage = document.getElementById('video-stage');
   const previewVideo = document.getElementById('camera-preview');
-  const scriptStatus = window.__scannerScriptStatus || {
-    zxingBrowserLoaded: false,
-    zxingBrowserFailed: false
-  };
 
   const ZXingApi = window.ZXingBrowser;
   const supportedFormats = ZXingApi ? [
@@ -81,6 +77,10 @@
       pill: 'Falha ao carregar leitor',
       text: 'Nao foi possivel carregar os arquivos do leitor ZXing. Recarregue a pagina e confirme se o servidor esta entregando /vendor/zxing-browser.min.js.'
     },
+    libraryInitError: {
+      pill: 'Falha ao iniciar leitor',
+      text: 'O arquivo do ZXing foi entregue, mas a API do leitor nao ficou disponivel na pagina. Recarregue a pagina e tente novamente.'
+    },
     stopped: {
       pill: 'Camera parada',
       text: 'Toque em Iniciar leitura para abrir a camera novamente.'
@@ -139,6 +139,41 @@
       window.ZXingBrowser &&
       window.ZXingBrowser.BrowserMultiFormatReader
     );
+  }
+
+  async function diagnoseScannerLoad() {
+    if (window.ZXingBrowser && window.ZXingBrowser.BrowserMultiFormatReader) {
+      return { type: 'ready' };
+    }
+
+    try {
+      const response = await fetch('/vendor/zxing-browser.min.js', {
+        method: 'GET',
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        return {
+          type: 'libraryLoadError',
+          text: 'O servidor respondeu ' + response.status + ' ao solicitar /vendor/zxing-browser.min.js.'
+        };
+      }
+
+      const contentType = String(response.headers.get('content-type') || '');
+      if (contentType && !contentType.includes('javascript')) {
+        return {
+          type: 'libraryInitError',
+          text: 'O arquivo do ZXing foi servido com Content-Type inesperado: ' + contentType + '.'
+        };
+      }
+
+      return { type: 'libraryInitError' };
+    } catch (error) {
+      return {
+        type: 'libraryLoadError',
+        text: 'Nao foi possivel baixar /vendor/zxing-browser.min.js neste navegador. Detalhe: ' + String(error && error.message ? error.message : error)
+      };
+    }
   }
 
   function getFormatLabel(formatValue) {
@@ -615,17 +650,33 @@
     setStatus('idle');
   });
 
-  if (!window.isSecureContext) {
-    setStatus('insecure');
-  } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setStatus('initError', 'Este navegador nao oferece suporte a captura de camera com getUserMedia.');
-  } else if (scriptStatus.zxingBrowserFailed) {
-    setStatus('libraryLoadError');
-  } else if (!window.ZXingBrowser || !window.ZXingBrowser.BrowserMultiFormatReader) {
-    setStatus('libraryError', 'O script do ZXing foi carregado, mas a API do leitor nao ficou disponivel. Recarregue a pagina e tente novamente.');
-  } else {
+  async function initializePageState() {
+    if (!window.isSecureContext) {
+      setStatus('insecure');
+      setButtons();
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('initError', 'Este navegador nao oferece suporte a captura de camera com getUserMedia.');
+      setButtons();
+      return;
+    }
+
+    if (!window.ZXingBrowser || !window.ZXingBrowser.BrowserMultiFormatReader) {
+      const diagnosis = await diagnoseScannerLoad();
+      setStatus(diagnosis.type, diagnosis.text);
+      setButtons();
+      return;
+    }
+
     setStatus('idle');
+    setButtons();
   }
 
-  setButtons();
+  initializePageState().catch(function (error) {
+    console.error(error);
+    setStatus('libraryError', 'Nao foi possivel concluir a verificacao inicial do leitor.');
+    setButtons();
+  });
 })();
