@@ -646,21 +646,15 @@
         if (error && !isTransientDecodeError(error)) {
           state.fatalDecodeHits += 1;
 
-          if (state.fatalDecodeHits < 3) {
-            console.warn('Erro de leitura tratado como instabilidade temporaria.', error);
-            updateGuidanceFromFailure();
+          if (state.fatalDecodeHits >= 3) {
+            console.warn('Falha de leitura mantida, mas o scanner seguira tentando ate o timeout.', error);
+            showDiagnostic(error, 'ZXing');
+            setStatus('reading', 'O leitor ainda nao conseguiu decodificar o codigo. Ajuste distancia, foco e iluminacao; a tentativa continuara ate o tempo acabar.');
+            state.fatalDecodeHits = 0;
             return;
           }
 
-          console.error('Falha da biblioteca ZXing.', error);
-          showDiagnostic(error, 'ZXing');
-          stopScanner({ keepStatus: true }).then(function () {
-            setStatus('libraryError', 'O leitor encontrou um erro inesperado durante a leitura. Tente novamente.');
-          }).catch(function (stopError) {
-            console.error('Falha ao encerrar scanner apos erro da biblioteca.', stopError);
-            showDiagnostic(stopError, 'Encerramento');
-            setStatus('libraryError');
-          });
+          updateGuidanceFromFailure();
           return;
         }
 
