@@ -19,6 +19,7 @@
   const previewVideo = document.getElementById('camera-preview');
 
   const ZXingApi = window.ZXingBrowser;
+  const ZXingCore = window.ZXing || null;
   const supportedFormats = ZXingApi ? [
     ZXingApi.BarcodeFormat.EAN_13,
     ZXingApi.BarcodeFormat.EAN_8,
@@ -118,6 +119,21 @@
     formatLabels[ZXingApi.BarcodeFormat.UPC_A] = 'UPC-A';
     formatLabels[ZXingApi.BarcodeFormat.UPC_E] = 'UPC-E';
     formatLabels[ZXingApi.BarcodeFormat.QR_CODE] = 'QR Code';
+  }
+
+  function createDecoderHints() {
+    if (!ZXingCore || !ZXingCore.DecodeHintType) {
+      return null;
+    }
+
+    const hints = new Map();
+    hints.set(ZXingCore.DecodeHintType.TRY_HARDER, true);
+
+    if (supportedFormats.length > 0) {
+      hints.set(ZXingCore.DecodeHintType.POSSIBLE_FORMATS, supportedFormats);
+    }
+
+    return hints;
   }
 
   function isIosDevice() {
@@ -559,13 +575,8 @@
     if (state.candidateText !== normalized) {
       state.candidateText = normalized;
       state.candidateHits = 1;
-      return;
-    }
-
-    state.candidateHits += 1;
-
-    if (state.candidateHits < 2) {
-      return;
+    } else {
+      state.candidateHits += 1;
     }
 
     state.lastAcceptedCode = normalized;
@@ -623,7 +634,7 @@
     try {
       prepareVideoElement();
       const stream = await requestBestAvailableStream();
-      const reader = new ZXingApi.BrowserMultiFormatReader(undefined, {
+      const reader = new ZXingApi.BrowserMultiFormatReader(createDecoderHints() || undefined, {
         delayBetweenScanAttempts: 180,
         delayBetweenScanSuccess: 500
       });
