@@ -245,6 +245,16 @@
       return true;
     }
 
+    const isRetryableMessage =
+      errorMessage.includes('no multiformat readers were able to detect the code') ||
+      errorMessage.includes('no readers were able to detect the code') ||
+      errorMessage.includes('no barcode found') ||
+      errorMessage.includes('not found');
+
+    if (isRetryableMessage) {
+      return true;
+    }
+
     const warmupWindowActive = state.scanActivatedAt > 0 && (Date.now() - state.scanActivatedAt) < 5000;
     const looksLikeVideoWarmupIssue =
       errorName === 'InvalidStateError' ||
