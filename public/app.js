@@ -20,13 +20,14 @@
 
   const ZXingApi = window.ZXingBrowser;
   const ZXingCore = window.ZXing || null;
-  const supportedFormats = ZXingApi ? [
-    ZXingApi.BarcodeFormat.EAN_13,
-    ZXingApi.BarcodeFormat.EAN_8,
-    ZXingApi.BarcodeFormat.CODE_128,
-    ZXingApi.BarcodeFormat.UPC_A,
-    ZXingApi.BarcodeFormat.UPC_E,
-    ZXingApi.BarcodeFormat.QR_CODE
+  const BarcodeFormatEnum = (ZXingCore && ZXingCore.BarcodeFormat) || (ZXingApi && ZXingApi.BarcodeFormat) || null;
+  const supportedFormats = BarcodeFormatEnum ? [
+    BarcodeFormatEnum.EAN_13,
+    BarcodeFormatEnum.EAN_8,
+    BarcodeFormatEnum.CODE_128,
+    BarcodeFormatEnum.UPC_A,
+    BarcodeFormatEnum.UPC_E,
+    BarcodeFormatEnum.QR_CODE
   ] : [];
 
   const statusCatalog = {
@@ -92,6 +93,8 @@
     }
   };
 
+  statusCatalog.idle.text = '';
+
   const state = {
     reader: null,
     controls: null,
@@ -107,18 +110,22 @@
     lastAcceptedAt: 0,
     lastFailureNoticeAt: 0,
     scanActivatedAt: 0,
+    scanLoopId: 0,
+    scanAttemptCount: 0,
+    captureCanvas: null,
+    captureContext: null,
     torchAvailable: false,
     isTorchOn: false
   };
 
   const formatLabels = {};
-  if (ZXingApi && ZXingApi.BarcodeFormat) {
-    formatLabels[ZXingApi.BarcodeFormat.EAN_13] = 'EAN-13';
-    formatLabels[ZXingApi.BarcodeFormat.EAN_8] = 'EAN-8';
-    formatLabels[ZXingApi.BarcodeFormat.CODE_128] = 'CODE-128';
-    formatLabels[ZXingApi.BarcodeFormat.UPC_A] = 'UPC-A';
-    formatLabels[ZXingApi.BarcodeFormat.UPC_E] = 'UPC-E';
-    formatLabels[ZXingApi.BarcodeFormat.QR_CODE] = 'QR Code';
+  if (BarcodeFormatEnum) {
+    formatLabels[BarcodeFormatEnum.EAN_13] = 'EAN-13';
+    formatLabels[BarcodeFormatEnum.EAN_8] = 'EAN-8';
+    formatLabels[BarcodeFormatEnum.CODE_128] = 'CODE-128';
+    formatLabels[BarcodeFormatEnum.UPC_A] = 'UPC-A';
+    formatLabels[BarcodeFormatEnum.UPC_E] = 'UPC-E';
+    formatLabels[BarcodeFormatEnum.QR_CODE] = 'QR Code';
   }
 
   function createDecoderHints() {
@@ -144,10 +151,23 @@
     return /iPhone|iPad|iPod/i.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
   }
 
+  function normalizeUiText(text) {
+    return String(text || '')
+      .replace(/cÃ¢mera/g, 'câmera')
+      .replace(/CÃ¢mera/g, 'Câmera')
+      .replace(/\bcamera\b/g, 'câmera')
+      .replace(/\bCamera\b/g, 'Câmera')
+      .replace(/Conteudo/g, 'Conteúdo')
+      .replace(/conteudo/g, 'conteúdo');
+  }
+
   function setStatus(type, overrideText) {
     const content = statusCatalog[type] || statusCatalog.idle;
-    statusPill.textContent = content.pill;
-    statusText.textContent = overrideText || content.text;
+    const nextText = overrideText !== undefined ? overrideText : content.text;
+
+    statusPill.textContent = normalizeUiText(content.pill);
+    statusText.textContent = normalizeUiText(nextText);
+    statusText.classList.toggle('hidden', !nextText);
   }
 
   function hideDiagnostic() {
@@ -177,42 +197,53 @@
       window.isSecureContext &&
       navigator.mediaDevices &&
       navigator.mediaDevices.getUserMedia &&
+      window.ZXing &&
+      window.ZXing.MultiFormatReader &&
       window.ZXingBrowser &&
       window.ZXingBrowser.BrowserMultiFormatReader
     );
   }
 
   async function diagnoseScannerLoad() {
-    if (window.ZXingBrowser && window.ZXingBrowser.BrowserMultiFormatReader) {
+    if (
+      window.ZXing &&
+      window.ZXing.MultiFormatReader &&
+      window.ZXingBrowser &&
+      window.ZXingBrowser.BrowserMultiFormatReader
+    ) {
       return { type: 'ready' };
     }
 
     try {
-      const response = await fetch('/vendor/zxing-browser.min.js', {
-        method: 'GET',
-        cache: 'no-store'
-      });
+      const targets = ['/vendor/zxing.min.js', '/vendor/zxing-browser.min.js'];
 
-      if (!response.ok) {
-        return {
-          type: 'libraryLoadError',
-          text: 'O servidor respondeu ' + response.status + ' ao solicitar /vendor/zxing-browser.min.js.'
-        };
-      }
+      for (const target of targets) {
+        const response = await fetch(target, {
+          method: 'GET',
+          cache: 'no-store'
+        });
 
-      const contentType = String(response.headers.get('content-type') || '');
-      if (contentType && !contentType.includes('javascript')) {
-        return {
-          type: 'libraryInitError',
-          text: 'O arquivo do ZXing foi servido com Content-Type inesperado: ' + contentType + '.'
-        };
+        if (!response.ok) {
+          return {
+            type: 'libraryLoadError',
+            text: 'O servidor respondeu ' + response.status + ' ao solicitar ' + target + '.'
+          };
+        }
+
+        const contentType = String(response.headers.get('content-type') || '');
+        if (contentType && !contentType.includes('javascript')) {
+          return {
+            type: 'libraryInitError',
+            text: 'O arquivo ' + target + ' foi servido com Content-Type inesperado: ' + contentType + '.'
+          };
+        }
       }
 
       return { type: 'libraryInitError' };
     } catch (error) {
       return {
         type: 'libraryLoadError',
-        text: 'Nao foi possivel baixar /vendor/zxing-browser.min.js neste navegador. Detalhe: ' + String(error && error.message ? error.message : error)
+        text: 'Nao foi possivel baixar os arquivos do ZXing neste navegador. Detalhe: ' + String(error && error.message ? error.message : error)
       };
     }
   }
@@ -225,6 +256,13 @@
     if (state.timeoutId) {
       window.clearTimeout(state.timeoutId);
       state.timeoutId = 0;
+    }
+  }
+
+  function clearScanLoop() {
+    if (state.scanLoopId) {
+      window.clearTimeout(state.scanLoopId);
+      state.scanLoopId = 0;
     }
   }
 
@@ -248,6 +286,7 @@
     state.candidateText = '';
     state.candidateHits = 0;
     state.fatalDecodeHits = 0;
+    state.scanAttemptCount = 0;
   }
 
   function normalizeDecodedText(decodedText) {
@@ -311,6 +350,10 @@
     previewVideo.load();
   }
 
+  function getActiveVideoTrack() {
+    return state.stream ? state.stream.getVideoTracks()[0] || null : null;
+  }
+
   function prepareVideoElement() {
     previewVideo.setAttribute('autoplay', 'true');
     previewVideo.setAttribute('muted', 'true');
@@ -318,6 +361,39 @@
     previewVideo.setAttribute('webkit-playsinline', 'true');
     previewVideo.muted = true;
     previewVideo.playsInline = true;
+  }
+
+  async function attachStreamToPreview(stream) {
+    previewVideo.srcObject = stream;
+
+    if (previewVideo.readyState < 1) {
+      await new Promise(function (resolve) {
+        function onLoadedMetadata() {
+          previewVideo.removeEventListener('loadedmetadata', onLoadedMetadata);
+          resolve();
+        }
+
+        previewVideo.addEventListener('loadedmetadata', onLoadedMetadata);
+      });
+    }
+
+    await previewVideo.play();
+  }
+
+  function detectTorchAvailability() {
+    const track = getActiveVideoTrack();
+
+    if (!track || !track.getCapabilities) {
+      return false;
+    }
+
+    try {
+      const capabilities = track.getCapabilities();
+      return Boolean(capabilities && capabilities.torch);
+    } catch (error) {
+      console.warn('Nao foi possivel verificar suporte a lanterna.', error);
+      return false;
+    }
   }
 
   function scoreCameraLabel(label) {
@@ -472,6 +548,169 @@
     return stream;
   }
 
+  function ensureCaptureCanvas(width, height) {
+    if (!state.captureCanvas) {
+      state.captureCanvas = document.createElement('canvas');
+      state.captureContext = state.captureCanvas.getContext('2d', { willReadFrequently: true }) || state.captureCanvas.getContext('2d');
+    }
+
+    if (state.captureCanvas.width !== width) {
+      state.captureCanvas.width = width;
+    }
+
+    if (state.captureCanvas.height !== height) {
+      state.captureCanvas.height = height;
+    }
+
+    return state.captureCanvas;
+  }
+
+  function getDecodeRegions() {
+    const frameWidth = previewVideo.videoWidth || 0;
+    const frameHeight = previewVideo.videoHeight || 0;
+
+    if (!frameWidth || !frameHeight) {
+      return [];
+    }
+
+    const linearWide = {
+      sx: Math.round(frameWidth * 0.05),
+      sy: Math.round(frameHeight * 0.34),
+      sw: Math.round(frameWidth * 0.90),
+      sh: Math.round(frameHeight * 0.24)
+    };
+
+    const linearTall = {
+      sx: Math.round(frameWidth * 0.08),
+      sy: Math.round(frameHeight * 0.26),
+      sw: Math.round(frameWidth * 0.84),
+      sh: Math.round(frameHeight * 0.38)
+    };
+
+    const squareSize = Math.round(Math.min(frameWidth, frameHeight) * 0.72);
+    const centerSquare = {
+      sx: Math.round((frameWidth - squareSize) / 2),
+      sy: Math.round((frameHeight - squareSize) / 2),
+      sw: squareSize,
+      sh: squareSize
+    };
+
+    return [linearWide, linearTall, centerSquare];
+  }
+
+  function drawDecodeRegion(region) {
+    const targetWidth = Math.max(320, region.sw);
+    const targetHeight = Math.max(160, region.sh);
+    const canvas = ensureCaptureCanvas(targetWidth, targetHeight);
+
+    state.captureContext.drawImage(
+      previewVideo,
+      region.sx,
+      region.sy,
+      region.sw,
+      region.sh,
+      0,
+      0,
+      targetWidth,
+      targetHeight
+    );
+
+    return canvas;
+  }
+
+  function decodeCanvasWithReader(canvas) {
+    const luminanceSource = new ZXingCore.HTMLCanvasElementLuminanceSource(canvas, true);
+    const hybridBitmap = new ZXingCore.BinaryBitmap(new ZXingCore.HybridBinarizer(luminanceSource));
+
+    try {
+      return state.reader.decodeWithState(hybridBitmap);
+    } catch (hybridError) {
+      if (hybridError && (hybridError.name === 'NotFoundException' || hybridError.name === 'ChecksumException' || hybridError.name === 'FormatException')) {
+        const histogramBitmap = new ZXingCore.BinaryBitmap(new ZXingCore.GlobalHistogramBinarizer(luminanceSource));
+        return state.reader.decodeWithState(histogramBitmap);
+      }
+
+      throw hybridError;
+    }
+  }
+
+  function decodeCurrentFrame() {
+    const regions = getDecodeRegions();
+    let lastError = null;
+
+    for (const region of regions) {
+      try {
+        const canvas = drawDecodeRegion(region);
+        const result = decodeCanvasWithReader(canvas);
+
+        if (result) {
+          return { result: result };
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    return { error: lastError };
+  }
+
+  function scheduleScanLoop(delayMs) {
+    clearScanLoop();
+
+    if (!state.isScanning) {
+      return;
+    }
+
+    state.scanLoopId = window.setTimeout(function () {
+      runScanLoop().catch(function (error) {
+        console.error('Falha no loop de leitura.', error);
+        showDiagnostic(error, 'Loop');
+        setStatus('libraryError', 'O leitor encontrou um erro ao analisar a imagem da camera.');
+      });
+    }, delayMs);
+  }
+
+  async function runScanLoop() {
+    if (!state.isScanning) {
+      return;
+    }
+
+    if (previewVideo.readyState < 2 || !previewVideo.videoWidth || !previewVideo.videoHeight) {
+      scheduleScanLoop(120);
+      return;
+    }
+
+    state.scanAttemptCount += 1;
+    const outcome = decodeCurrentFrame();
+
+    if (outcome.result) {
+      state.fatalDecodeHits = 0;
+      await finalizeSuccessfulRead(
+        outcome.result.getText(),
+        outcome.result.getBarcodeFormat ? getFormatLabel(outcome.result.getBarcodeFormat()) : ''
+      );
+      return;
+    }
+
+    if (outcome.error && !isTransientDecodeError(outcome.error)) {
+      state.fatalDecodeHits += 1;
+
+      if (state.fatalDecodeHits >= 3) {
+        console.warn('Falha de leitura mantida, mas o scanner seguira tentando ate o timeout.', outcome.error);
+        showDiagnostic(outcome.error, 'ZXing');
+        setStatus('reading', 'O leitor ainda nao conseguiu decodificar o codigo. Ajuste distancia, foco e iluminacao; a tentativa continuara ate o tempo acabar.');
+        state.fatalDecodeHits = 0;
+      } else {
+        updateGuidanceFromFailure();
+      }
+    } else {
+      state.fatalDecodeHits = 0;
+      updateGuidanceFromFailure();
+    }
+
+    scheduleScanLoop(90);
+  }
+
   function updateGuidanceFromFailure() {
     const now = Date.now();
     if (now - state.lastFailureNoticeAt > 3500) {
@@ -514,6 +753,7 @@
 
   async function disposeScannerInternals() {
     clearScanTimeout();
+    clearScanLoop();
 
     if (state.controls) {
       try {
@@ -529,10 +769,16 @@
       state.stream = null;
     }
 
+    if (state.reader && state.reader.reset) {
+      state.reader.reset();
+    }
+
     state.reader = null;
     state.scanActivatedAt = 0;
     state.torchAvailable = false;
     state.isTorchOn = false;
+    state.captureCanvas = null;
+    state.captureContext = null;
     clearVideoElement();
     resetDetectionBuffer();
   }
@@ -634,55 +880,31 @@
     try {
       prepareVideoElement();
       const stream = await requestBestAvailableStream();
-      const reader = new ZXingApi.BrowserMultiFormatReader(createDecoderHints() || undefined, {
-        delayBetweenScanAttempts: 180,
-        delayBetweenScanSuccess: 500
-      });
+      await attachStreamToPreview(stream);
 
-      if (supportedFormats.length > 0) {
-        reader.possibleFormats = supportedFormats;
+      if (!ZXingCore || !ZXingCore.MultiFormatReader) {
+        throw new Error('O nucleo do ZXing nao ficou disponivel para processar os frames do video.');
+      }
+
+      const reader = new ZXingCore.MultiFormatReader();
+      const hints = createDecoderHints();
+      if (hints) {
+        reader.setHints(hints);
       }
 
       state.stream = stream;
       state.reader = reader;
       setStatus('guiding');
 
-      const controls = await reader.decodeFromStream(stream, previewVideo, function (result, error) {
-      if (result) {
-          state.fatalDecodeHits = 0;
-          finalizeSuccessfulRead(result.getText(), result.getBarcodeFormat ? getFormatLabel(result.getBarcodeFormat()) : '');
-          return;
-        }
-
-        if (error && !isTransientDecodeError(error)) {
-          state.fatalDecodeHits += 1;
-
-          if (state.fatalDecodeHits >= 3) {
-            console.warn('Falha de leitura mantida, mas o scanner seguira tentando ate o timeout.', error);
-            showDiagnostic(error, 'ZXing');
-            setStatus('reading', 'O leitor ainda nao conseguiu decodificar o codigo. Ajuste distancia, foco e iluminacao; a tentativa continuara ate o tempo acabar.');
-            state.fatalDecodeHits = 0;
-            return;
-          }
-
-          updateGuidanceFromFailure();
-          return;
-        }
-
-        if (state.isScanning) {
-          state.fatalDecodeHits = 0;
-          updateGuidanceFromFailure();
-        }
-      });
-
-      state.controls = controls;
-      state.torchAvailable = typeof controls.switchTorch === 'function';
+      state.controls = null;
+      state.torchAvailable = detectTorchAvailability();
       state.isTorchOn = false;
       state.isScanning = true;
       state.scanActivatedAt = Date.now();
       state.isStarting = false;
       setStatus('reading');
       startScanTimeout();
+      scheduleScanLoop(120);
     } catch (error) {
       console.error('Falha ao iniciar o scanner.', error);
       showDiagnostic(error, 'Inicializacao');
@@ -703,7 +925,9 @@
   }
 
   async function toggleTorch() {
-    if (!state.isScanning || !state.controls || typeof state.controls.switchTorch !== 'function') {
+    const track = getActiveVideoTrack();
+
+    if (!state.isScanning || !track || !track.applyConstraints || !state.torchAvailable) {
       return;
     }
 
@@ -711,7 +935,9 @@
     torchButton.disabled = true;
 
     try {
-      await state.controls.switchTorch(nextTorchState);
+      await track.applyConstraints({
+        advanced: [{ torch: nextTorchState }]
+      });
       state.isTorchOn = nextTorchState;
     } catch (error) {
       console.warn('Nao foi possivel alternar a lanterna.', error);
@@ -785,7 +1011,12 @@
       return;
     }
 
-    if (!window.ZXingBrowser || !window.ZXingBrowser.BrowserMultiFormatReader) {
+    if (
+      !window.ZXing ||
+      !window.ZXing.MultiFormatReader ||
+      !window.ZXingBrowser ||
+      !window.ZXingBrowser.BrowserMultiFormatReader
+    ) {
       const diagnosis = await diagnoseScannerLoad();
       setStatus(diagnosis.type, diagnosis.text);
       setButtons();

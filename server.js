@@ -138,7 +138,7 @@ function printStartupBanner(httpsEnabled) {
   const protocol = httpsEnabled ? 'https' : 'http';
 
   console.log('');
-  console.log(`Leitor patrimonial ${httpsEnabled ? 'HTTPS' : 'HTTP'} iniciado.`);
+  console.log(`Leitor Codigo de Barras ${httpsEnabled ? 'HTTPS' : 'HTTP'} iniciado.`);
   console.log(`Local:   ${protocol}://localhost:${PORT}`);
 
   if (addresses.length > 0) {

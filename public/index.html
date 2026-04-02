@@ -4,17 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#0f172a">
-    <title>Leitor Patrimonial</title>
+    <title>Leitor Codigo de Barras</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <main class="app-shell">
       <section class="hero-card">
         <div class="status-panel" aria-live="polite">
-          <span class="status-pill" id="status-pill">Aguardando permissao da camera</span>
-          <p class="status-text" id="status-text">
-            Toque em iniciar para liberar a camera, centralize a etiqueta e ajuste a distancia para manter as barras nitidas.
-          </p>
+          <span class="status-pill" id="status-pill">Aguardando permissao da câmera</span>
+          <p class="status-text hidden" id="status-text"></p>
           <div class="diagnostic-panel hidden" id="diagnostic-panel" aria-live="polite">
             <p class="diagnostic-title">Diagnostico do leitor</p>
             <p class="diagnostic-line"><strong>Nome:</strong> <span id="diagnostic-name">-</span></p>
@@ -36,13 +34,13 @@
 
         <div class="actions actions-scanner">
           <button class="button button-primary" id="start-button" type="button">Iniciar leitura</button>
-          <button class="button button-secondary" id="stop-button" type="button" disabled>Parar camera</button>
+          <button class="button button-secondary" id="stop-button" type="button" disabled>Parar câmera</button>
           <button class="button button-secondary" id="torch-button" type="button" disabled>Ligar a lanterna</button>
         </div>
       </section>
 
       <section class="result-dock" aria-live="polite">
-        <label class="result-inline-label" for="result-inline-code">Conteudo lido</label>
+        <label class="result-inline-label" for="result-inline-code">Conteúdo lido</label>
         <input
           class="result-inline-input"
           id="result-inline-code"
