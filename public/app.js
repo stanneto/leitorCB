@@ -76,6 +76,14 @@
     lastAcceptedAt: 0
   };
 
+  function isIosDevice() {
+    const userAgent = window.navigator.userAgent || '';
+    const platform = window.navigator.platform || '';
+    const maxTouchPoints = window.navigator.maxTouchPoints || 0;
+
+    return /iPhone|iPad|iPod/i.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
+  }
+
   function setStatus(type, overrideText) {
     const content = statusCatalog[type] || statusCatalog.idle;
     statusPill.textContent = content.pill;
@@ -89,6 +97,60 @@
 
   function isScannerSupported() {
     return Boolean(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.Html5Qrcode);
+  }
+
+  function getScannerVideoElement() {
+    return videoStage.querySelector('video');
+  }
+
+  function tuneVideoElementForMobile() {
+    const video = getScannerVideoElement();
+
+    if (!video) {
+      return;
+    }
+
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('webkit-playsinline', 'true');
+    video.setAttribute('muted', 'true');
+    video.muted = true;
+    video.autoplay = true;
+  }
+
+  async function applyPlatformCameraTuning(scanner) {
+    tuneVideoElementForMobile();
+
+    if (!isIosDevice() || !scanner) {
+      return;
+    }
+
+    try {
+      const capabilities = scanner.getRunningTrackCapabilities();
+      const advanced = [];
+
+      if (capabilities && Array.isArray(capabilities.focusMode)) {
+        if (capabilities.focusMode.includes('continuous')) {
+          advanced.push({ focusMode: 'continuous' });
+        } else if (capabilities.focusMode.includes('single-shot')) {
+          advanced.push({ focusMode: 'single-shot' });
+        }
+      }
+
+      if (capabilities && typeof capabilities.zoom === 'object' && typeof capabilities.zoom.max === 'number') {
+        const minZoom = typeof capabilities.zoom.min === 'number' ? capabilities.zoom.min : 1;
+        const maxZoom = capabilities.zoom.max;
+
+        if (maxZoom > minZoom) {
+          advanced.push({ zoom: Math.min(maxZoom, Math.max(minZoom, 1.8)) });
+        }
+      }
+
+      if (advanced.length > 0) {
+        await scanner.applyVideoConstraints({ advanced: advanced });
+      }
+    } catch (error) {
+      console.warn('Nao foi possivel aplicar ajustes extras de camera para iPhone.', error);
+    }
   }
 
   function resetDetectionBuffer() {
@@ -355,6 +417,7 @@
   async function startScannerWithConfig(cameraConfig, scanConfig, guidanceText) {
     const scanner = createScanner();
     await scanner.start(cameraConfig, scanConfig, handleSuccess, handleFailure);
+    await applyPlatformCameraTuning(scanner);
     state.isScanning = true;
     setStatus('reading', guidanceText);
   }
@@ -398,7 +461,12 @@
           aspectRatio: stageWidth / stageHeight,
           disableFlip: false,
           fps: 10,
-          qrbox: qrBoxFactory
+          qrbox: qrBoxFactory,
+          videoConstraints: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: isIosDevice() ? 1920 : 1280 },
+            height: { ideal: isIosDevice() ? 1080 : 720 }
+          }
         }
       );
     } catch (error) {
@@ -414,7 +482,12 @@
             {
               disableFlip: false,
               fps: 10,
-              qrbox: { width: 300, height: 120 }
+              qrbox: { width: 300, height: 120 },
+              videoConstraints: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              }
             },
             'A camera traseira foi selecionada por preferencia. Se a leitura falhar, confira se outra camera nao foi aberta.'
           );
@@ -507,7 +580,7 @@
   });
 
   if (!window.isSecureContext) {
-    setStatus('unsupported', 'Este leitor esta em HTTP. Em muitos navegadores moveis a camera so funciona em localhost ou HTTPS.');
+    setStatus('unsupported', 'No iPhone, a camera so funciona de forma confiavel em HTTPS ou localhost. Gere um certificado local e abra o leitor em https://.');
     startButton.disabled = true;
   } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     setStatus('unsupported');

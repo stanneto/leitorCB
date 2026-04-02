@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const os = require('os');
 const path = require('path');
 const { URL } = require('url');
@@ -10,6 +11,9 @@ const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const ROOT_DIR = __dirname;
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
+const CERT_DIR = path.join(ROOT_DIR, 'certs');
+const HTTPS_KEY_PATH = process.env.HTTPS_KEY_PATH || path.join(CERT_DIR, 'dev-key.pem');
+const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH || path.join(CERT_DIR, 'dev-cert.pem');
 const VENDOR_CANDIDATES = {
   '/vendor/html5-qrcode.min.js': [
     path.join(ROOT_DIR, 'node_modules', 'html5-qrcode', 'html5-qrcode.min.js'),
@@ -36,6 +40,21 @@ function fileExists(targetPath) {
   } catch (error) {
     return false;
   }
+}
+
+function loadHttpsCredentials() {
+  if (String(process.env.HTTPS || '').toLowerCase() === 'false') {
+    return null;
+  }
+
+  if (!fileExists(HTTPS_KEY_PATH) || !fileExists(HTTPS_CERT_PATH)) {
+    return null;
+  }
+
+  return {
+    key: fs.readFileSync(HTTPS_KEY_PATH),
+    cert: fs.readFileSync(HTTPS_CERT_PATH)
+  };
 }
 
 function getVendorFile(urlPathname) {
@@ -104,15 +123,15 @@ function getLocalNetworkAddresses() {
   return [...new Set(addresses)];
 }
 
-function createServer() {
-  return http.createServer((request, response) => {
+function createRequestListener(httpsEnabled) {
+  return (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
     const { pathname } = url;
 
     if (pathname === '/health') {
       return sendJson(response, 200, {
         ok: true,
-        https: false,
+        https: httpsEnabled,
         port: PORT,
         host: HOST,
         networkAddresses: getLocalNetworkAddresses()
@@ -134,34 +153,44 @@ function createServer() {
     }
 
     return sendFile(response, publicFile, 'no-cache');
-  });
+  };
 }
 
-function printStartupBanner() {
+function printStartupBanner(httpsEnabled) {
   const addresses = getLocalNetworkAddresses();
+  const protocol = httpsEnabled ? 'https' : 'http';
 
   console.log('');
-  console.log('Leitor patrimonial HTTP iniciado.');
-  console.log(`Local:   http://localhost:${PORT}`);
+  console.log(`Leitor patrimonial ${httpsEnabled ? 'HTTPS' : 'HTTP'} iniciado.`);
+  console.log(`Local:   ${protocol}://localhost:${PORT}`);
 
   if (addresses.length > 0) {
     for (const address of addresses) {
-      console.log(`Rede:    http://${address}:${PORT}`);
+      console.log(`Rede:    ${protocol}://${address}:${PORT}`);
     }
   } else {
     console.log('Rede:    Nenhum IP local IPv4 foi encontrado.');
   }
+
+  if (!httpsEnabled) {
+    console.log('');
+    console.log('Aviso: o iPhone costuma exigir HTTPS para liberar a camera fora de localhost.');
+    console.log('Execute `npm run cert` para gerar um certificado local de desenvolvimento.');
+  }
   console.log('');
 }
 
-const server = createServer();
+const httpsCredentials = loadHttpsCredentials();
+const server = httpsCredentials
+  ? https.createServer(httpsCredentials, createRequestListener(true))
+  : http.createServer(createRequestListener(false));
 
 server.listen(PORT, HOST, () => {
-  printStartupBanner();
+  printStartupBanner(Boolean(httpsCredentials));
 });
 
 server.on('error', (error) => {
-  console.error('Falha ao iniciar o servidor HTTP.');
+  console.error('Falha ao iniciar o servidor.');
   console.error(error);
   process.exit(1);
 });
