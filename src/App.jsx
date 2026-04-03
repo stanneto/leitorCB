@@ -169,6 +169,7 @@ export default function App() {
     lastAcceptedAt: 0,
     lastAcceptedCode: '',
     lastFailureNoticeAt: 0,
+    lastOcrError: null,
     lastOcrAttemptAt: 0,
     lastOcrProgress: null,
     ocrInFlight: false,
@@ -214,6 +215,7 @@ export default function App() {
     runtime.candidateHits = 0;
     runtime.candidateText = '';
     runtime.fatalDecodeHits = 0;
+    runtime.lastOcrError = null;
     runtime.lastOcrAttemptAt = 0;
     runtime.readingStatusShown = false;
   }
@@ -512,6 +514,8 @@ export default function App() {
       await finalizeSuccessfulRead(ocrResult.text, 'OCR NUMERICO');
     } catch (error) {
       console.warn('Falha na tentativa de OCR.', error);
+      showDiagnostic(error, 'OCR');
+      setStatus('ocr', 'O OCR nao conseguiu reconhecer a numeracao da etiqueta nesta tentativa.');
     }
   }
 

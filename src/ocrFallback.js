@@ -2,55 +2,83 @@ import { createWorker, PSM } from 'tesseract.js';
 
 const OCR_MIN_LENGTH = 6;
 const OCR_MAX_LENGTH = 20;
-const OCR_RETRY_INTERVAL_MS = 2800;
+const OCR_RETRY_INTERVAL_MS = 2400;
 
-function ensureOcrCanvas(runtime, width, height) {
-  if (!runtime.ocrCanvas) {
-    runtime.ocrCanvas = document.createElement('canvas');
-    runtime.ocrContext = runtime.ocrCanvas.getContext('2d', { willReadFrequently: true }) || runtime.ocrCanvas.getContext('2d');
+function ensureOcrCanvas(runtime, key, width, height) {
+  const canvasKey = `${key}Canvas`;
+  const contextKey = `${key}Context`;
+
+  if (!runtime[canvasKey]) {
+    runtime[canvasKey] = document.createElement('canvas');
+    runtime[contextKey] =
+      runtime[canvasKey].getContext('2d', { willReadFrequently: true }) ||
+      runtime[canvasKey].getContext('2d');
   }
 
-  if (runtime.ocrCanvas.width !== width) {
-    runtime.ocrCanvas.width = width;
+  if (runtime[canvasKey].width !== width) {
+    runtime[canvasKey].width = width;
   }
 
-  if (runtime.ocrCanvas.height !== height) {
-    runtime.ocrCanvas.height = height;
+  if (runtime[canvasKey].height !== height) {
+    runtime[canvasKey].height = height;
   }
 
-  return runtime.ocrCanvas;
+  return {
+    canvas: runtime[canvasKey],
+    context: runtime[contextKey]
+  };
 }
 
-function drawOcrRegion(runtime, video) {
+function getOcrRegions(video) {
   const frameWidth = video.videoWidth || 0;
   const frameHeight = video.videoHeight || 0;
 
   if (!frameWidth || !frameHeight) {
-    return null;
+    return [];
   }
 
-  const source = {
-    sx: Math.round(frameWidth * 0.08),
-    sy: Math.round(frameHeight * 0.34),
-    sw: Math.round(frameWidth * 0.84),
-    sh: Math.round(frameHeight * 0.24)
-  };
+  return [
+    {
+      id: 'labelBottomTight',
+      sx: Math.round(frameWidth * 0.18),
+      sy: Math.round(frameHeight * 0.53),
+      sw: Math.round(frameWidth * 0.64),
+      sh: Math.round(frameHeight * 0.1)
+    },
+    {
+      id: 'labelBottomWide',
+      sx: Math.round(frameWidth * 0.1),
+      sy: Math.round(frameHeight * 0.5),
+      sw: Math.round(frameWidth * 0.8),
+      sh: Math.round(frameHeight * 0.13)
+    },
+    {
+      id: 'labelWithBars',
+      sx: Math.round(frameWidth * 0.08),
+      sy: Math.round(frameHeight * 0.41),
+      sw: Math.round(frameWidth * 0.84),
+      sh: Math.round(frameHeight * 0.24)
+    }
+  ];
+}
+
+function drawRegionVariant(runtime, video, region, variant) {
   const targetWidth = 1800;
-  const targetHeight = 520;
-  const canvas = ensureOcrCanvas(runtime, targetWidth, targetHeight);
-  const context = runtime.ocrContext;
+  const targetHeight = variant === 'bars' ? 520 : 260;
+  const { canvas, context } = ensureOcrCanvas(runtime, `${region.id}_${variant}`, targetWidth, targetHeight);
 
   context.save();
+  context.clearRect(0, 0, targetWidth, targetHeight);
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, targetWidth, targetHeight);
-  context.filter = 'grayscale(1) contrast(1.65) brightness(1.18)';
+  context.filter = 'grayscale(1) contrast(1.95) brightness(1.2)';
   context.imageSmoothingEnabled = true;
   context.drawImage(
     video,
-    source.sx,
-    source.sy,
-    source.sw,
-    source.sh,
+    region.sx,
+    region.sy,
+    region.sw,
+    region.sh,
     0,
     0,
     targetWidth,
@@ -58,11 +86,44 @@ function drawOcrRegion(runtime, video) {
   );
   context.restore();
 
+  if (variant === 'binary') {
+    const imageData = context.getImageData(0, 0, targetWidth, targetHeight);
+    const { data } = imageData;
+
+    for (let index = 0; index < data.length; index += 4) {
+      const luminance = data[index] * 0.299 + data[index + 1] * 0.587 + data[index + 2] * 0.114;
+      const value = luminance > 165 ? 255 : 0;
+
+      data[index] = value;
+      data[index + 1] = value;
+      data[index + 2] = value;
+      data[index + 3] = 255;
+    }
+
+    context.putImageData(imageData, 0, 0);
+  }
+
   return canvas;
 }
 
 function normalizeOcrText(text) {
   return String(text || '').replace(/\D+/g, '').trim();
+}
+
+function getCandidateScore(text, confidence) {
+  let score = typeof confidence === 'number' ? confidence : 0;
+
+  if (text.length === 8) {
+    score += 18;
+  } else if (text.length >= 6 && text.length <= 10) {
+    score += 10;
+  }
+
+  if (text.startsWith('0')) {
+    score += 4;
+  }
+
+  return score;
 }
 
 export function isValidOcrCode(text) {
@@ -76,7 +137,7 @@ async function getOcrWorker(runtime) {
 
   const worker = await createWorker('eng', 1, {
     logger: (message) => {
-      if (message?.status === 'recognizing text' || message?.status === 'loading language traineddata') {
+      if (message?.status) {
         runtime.lastOcrProgress = message;
       }
     }
@@ -108,6 +169,28 @@ export async function terminateOcrWorker(runtime) {
   }
 }
 
+async function recognizeCanvas(worker, canvas) {
+  const {
+    data: { confidence, text }
+  } = await worker.recognize(canvas);
+  const normalized = normalizeOcrText(text);
+
+  if (!isValidOcrCode(normalized)) {
+    return null;
+  }
+
+  const resolvedConfidence = typeof confidence === 'number' ? confidence : 0;
+
+  if (resolvedConfidence < 35) {
+    return null;
+  }
+
+  return {
+    confidence: resolvedConfidence,
+    text: normalized
+  };
+}
+
 export async function tryRecognizeNumericOcr(runtime, video) {
   const now = Date.now();
 
@@ -125,29 +208,43 @@ export async function tryRecognizeNumericOcr(runtime, video) {
 
   try {
     const worker = await getOcrWorker(runtime);
-    const canvas = drawOcrRegion(runtime, video);
+    const regions = getOcrRegions(video);
+    let bestCandidate = null;
 
-    if (!canvas) {
-      return null;
+    for (const region of regions) {
+      for (const variant of ['clean', 'binary']) {
+        const canvas = drawRegionVariant(runtime, video, region, variant);
+        const candidate = await recognizeCanvas(worker, canvas);
+
+        if (!candidate) {
+          continue;
+        }
+
+        const score = getCandidateScore(candidate.text, candidate.confidence);
+
+        if (!bestCandidate || score > bestCandidate.score) {
+          bestCandidate = {
+            confidence: candidate.confidence,
+            regionId: region.id,
+            score,
+            text: candidate.text,
+            variant
+          };
+        }
+      }
     }
 
-    const {
-      data: { text, confidence }
-    } = await worker.recognize(canvas);
-    const normalized = normalizeOcrText(text);
-
-    if (!isValidOcrCode(normalized)) {
-      return null;
-    }
-
-    if (typeof confidence === 'number' && confidence < 45) {
+    if (!bestCandidate) {
       return null;
     }
 
     return {
-      confidence: typeof confidence === 'number' ? confidence : null,
-      text: normalized
+      confidence: bestCandidate.confidence,
+      text: bestCandidate.text
     };
+  } catch (error) {
+    runtime.lastOcrError = error;
+    throw error;
   } finally {
     runtime.ocrInFlight = false;
   }
