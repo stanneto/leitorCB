@@ -168,8 +168,7 @@ h1 {
 
 .camera-preview {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  inset: 0;
   display: block;
   width: 100% !important;
   height: 100% !important;
@@ -179,7 +178,6 @@ h1 {
   max-height: none;
   object-fit: cover;
   object-position: center center;
-  transform: translate(-50%, -50%);
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.35)),
     #020617;
