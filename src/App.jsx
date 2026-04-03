@@ -107,6 +107,8 @@ function createInitialUiState() {
     isStarting: false,
     isStopping: false,
     isTorchOn: false,
+    lastReadCode: '',
+    lastReadFormat: '',
     resultCode: '',
     resultFormat: '',
     statusOverrideText: null,
@@ -570,6 +572,8 @@ export default function App() {
       copyFeedback: '',
       inlineCode: normalized,
       isResultModalOpen: true,
+      lastReadCode: normalized,
+      lastReadFormat: formatName,
       resultCode: normalized,
       resultFormat: formatName
     });
@@ -741,7 +745,7 @@ export default function App() {
 
   async function handleCopyCode() {
     try {
-      const copied = await copyText(ui.inlineCode || ui.resultCode);
+      const copied = await copyText(ui.lastReadCode || ui.inlineCode || ui.resultCode);
 
       patchUi({
         copyFeedback: copied ? 'Codigo copiado.' : 'Nao foi possivel copiar o codigo automaticamente.'
@@ -756,7 +760,7 @@ export default function App() {
   function closeResultModal() {
     patchUi({ copyFeedback: '', isResultModalOpen: false });
 
-    if (ui.inlineCode) {
+    if (ui.lastReadCode) {
       setStatus('success');
       return;
     }
@@ -822,8 +826,8 @@ export default function App() {
   }, []);
 
   const statusView = getStatusView(ui.statusType, ui.statusOverrideText);
-  const displayedCode = ui.inlineCode || ui.resultCode || '';
-  const displayedFormat = ui.resultFormat || '';
+  const displayedCode = ui.lastReadCode || ui.inlineCode || ui.resultCode || '';
+  const displayedFormat = ui.lastReadFormat || ui.resultFormat || '';
   const startDisabled = ui.isStarting || ui.isScanning || !window.isSecureContext;
   const stopDisabled = !ui.isScanning || ui.isStopping;
   const torchDisabled = !ui.isScanning || ui.isStopping || !ui.torchAvailable;
