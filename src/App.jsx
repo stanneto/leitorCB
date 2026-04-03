@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import { BarcodeFormat, DecodeHintType } from '@zxing/library';
+import { BarcodeFormat, DecodeHintType, MultiFormatReader } from '@zxing/library';
 import {
   getFormatLabel,
   getRequiredConfirmationHits,
@@ -517,7 +516,8 @@ export default function App() {
       prepareVideoElement();
       const stream = await requestBestAvailableStream();
       const hints = createDecoderHints();
-      const reader = new BrowserMultiFormatReader(hints);
+      const reader = new MultiFormatReader();
+      reader.setHints(hints);
       const video = videoRef.current;
 
       runtime.stream = stream;
