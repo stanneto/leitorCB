@@ -35,6 +35,10 @@ body {
   min-height: 100vh;
 }
 
+#root {
+  min-height: 100vh;
+}
+
 .app-shell {
   width: min(100%, 760px);
   margin: 0 auto;

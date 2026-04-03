@@ -1,11 +1,12 @@
-# Leitor Patrimonial HTTPS
+# Leitor de Código de Barras
 
-Projeto completo em Node.js com frontend web responsivo e mobile-first para leitura de etiquetas patrimoniais por camera, com foco em **Code 128**, usando **ZXing** como motor principal e com suporte a HTTPS local para uso no iPhone.
+Projeto em Node.js com front-end em React, interface mobile-first e leitura em tempo real com **ZXing**, mantendo suporte a HTTPS local para uso no iPhone.
 
 ## Recursos
 
 - Servidor local em Node.js com HTTPS automatico quando houver certificado local
 - Leitura em tempo real com ZXing, sem depender de `BarcodeDetector` nativo
+- Front-end em React montado em um único `root`
 - Interface web mobile-first com guia visual central
 - Solicitacao correta de permissao de camera somente apos tocar em `Iniciar leitura`
 - Preferencia pela camera traseira com fallback seguro para iPhone e Android
@@ -24,6 +25,12 @@ Projeto completo em Node.js com frontend web responsivo e mobile-first para leit
 |   |-- app.js
 |   |-- index.html
 |   |-- styles.css
+|-- src/
+|   |-- App.jsx
+|   |-- barcodeUtils.js
+|   |-- main.jsx
+|   |-- scannerDecode.js
+|   |-- scannerEnv.js
 |-- scripts/
 |   |-- generate-dev-certificate.mjs
 |   |-- print-local-ip.mjs
@@ -40,7 +47,7 @@ Tenha Node.js 18 ou superior instalado.
 npm install
 ```
 
-Isso instala `@zxing/browser` e `@zxing/library`, usados para leitura em tempo real com melhor previsibilidade no iPhone e no Android.
+Isso instala React, esbuild e as bibliotecas ZXing usadas para gerar e servir o front-end.
 
 ## 2. Como preparar HTTPS local para iPhone
 
@@ -57,7 +64,15 @@ Esse comando cria:
 
 Se esses arquivos existirem, o servidor iniciara automaticamente em `HTTPS`.
 
-## 3. Como iniciar o servidor
+## 3. Como gerar o front-end React
+
+```bash
+npm run build
+```
+
+Esse comando compila `src/main.jsx` e gera `public/app.js`.
+
+## 4. Como iniciar o servidor
 
 ```bash
 npm start
@@ -74,11 +89,13 @@ Tambem existe o endpoint:
 
 - `https://localhost:3000/health`
 
-## 4. Como acessar pelo computador
+O script `npm start` já executa o build do React antes de subir o servidor.
+
+## 5. Como acessar pelo computador
 
 Abra `https://localhost:3000` quando houver certificado local. Sem certificado, use `http://localhost:3000`.
 
-## 5. Como acessar pelo iPhone e Android na mesma rede Wi-Fi
+## 6. Como acessar pelo iPhone e Android na mesma rede Wi-Fi
 
 1. Conecte o computador e o celular na mesma rede Wi-Fi.
 2. Descubra o IP local do computador com `npm run local-ip`.
@@ -92,7 +109,7 @@ https://SEU-IP-LOCAL:3000
 
 No primeiro acesso, o certificado local pode precisar ser confiado manualmente no aparelho para que o Safari ou o Chrome no iPhone liberem a camera.
 
-## 6. Limitacoes conhecidas
+## 7. Limitacoes conhecidas
 
 - iPhone e iPad normalmente exigem HTTPS para liberar camera em navegadores baseados em WebKit.
 - Certificados autoassinados podem exigir confianca manual no iPhone.
@@ -100,7 +117,7 @@ No primeiro acesso, o certificado local pode precisar ser confiado manualmente n
 - Safari, Chrome, Edge e Firefox no iPhone compartilham o mesmo motor WebKit.
 - Controle fino de foco e zoom varia por aparelho e versao do sistema.
 
-## 7. Como testar a leitura
+## 8. Como testar a leitura
 
 1. Abra a pagina no navegador.
 2. Toque em `Iniciar leitura`.

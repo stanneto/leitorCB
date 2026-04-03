@@ -1,11 +1,12 @@
 {
   "name": "leitor-patrimonial-https",
   "version": "1.0.0",
-  "description": "Leitor web de codigo de barras patrimonial com Node.js, ZXing e suporte a HTTPS local para iPhone.",
+  "description": "Leitor web de codigo de barras com Node.js, React, ZXing e suporte a HTTPS local para iPhone.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "build": "node scripts/build-client.mjs",
+    "start": "npm run build && node server.js",
+    "dev": "npm run build && node server.js",
     "local-ip": "node scripts/print-local-ip.mjs",
     "cert": "node scripts/generate-dev-certificate.mjs"
   },
@@ -21,6 +22,9 @@
   "license": "MIT",
   "dependencies": {
     "@zxing/browser": "^0.1.5",
-    "@zxing/library": "^0.21.3"
+    "@zxing/library": "^0.21.3",
+    "esbuild": "^0.28.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   }
 }

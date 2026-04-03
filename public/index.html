@@ -8,67 +8,7 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <main class="app-shell">
-      <section class="hero-card">
-        <h1>Leitor de Código de Barras</h1>
-
-        <div class="status-panel" aria-live="polite">
-          <span class="status-pill" id="status-pill">Ative a câmera</span>
-          <p class="status-text hidden" id="status-text"></p>
-          <div class="diagnostic-panel hidden" id="diagnostic-panel" aria-live="polite">
-            <p class="diagnostic-title">Diagnóstico do leitor</p>
-            <p class="diagnostic-line"><strong>Nome:</strong> <span id="diagnostic-name">-</span></p>
-            <p class="diagnostic-line"><strong>Mensagem:</strong> <span id="diagnostic-message">-</span></p>
-          </div>
-        </div>
-
-        <div class="camera-card">
-          <div class="video-stage" id="video-stage">
-            <video id="camera-preview" class="camera-preview" muted playsinline></video>
-            <div class="scan-guide" aria-hidden="true">
-              <div class="scan-frame"></div>
-              <div class="scan-line"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="actions actions-scanner">
-          <button class="button button-primary" id="start-button" type="button">Iniciar leitura</button>
-          <button class="button button-secondary" id="stop-button" type="button" disabled>Parar câmera</button>
-          <button class="button button-secondary" id="torch-button" type="button" disabled>Ligar a lanterna</button>
-        </div>
-      </section>
-
-      <section class="result-dock" aria-live="polite">
-        <label class="result-inline-label" for="result-inline-code">Conteúdo lido</label>
-        <input
-          class="result-inline-input"
-          id="result-inline-code"
-          type="text"
-          value=""
-          readonly
-        >
-      </section>
-    </main>
-
-    <div class="result-modal hidden" id="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
-      <div class="result-card">
-        <p class="result-label">Código lido</p>
-        <h2 id="result-title">Código lido</h2>
-        <p class="result-copy">Valor detectado:</p>
-        <p class="result-code" id="result-code">-</p>
-        <p class="result-copy" id="result-note">
-          Leitura concluída com sucesso.
-        </p>
-        <div class="actions actions-modal">
-          <button class="button button-secondary" id="close-button" type="button">Fechar</button>
-          <button class="button button-primary" id="retry-button" type="button">Ler novamente</button>
-        </div>
-      </div>
-    </div>
-
-    <script src="/vendor/zxing.min.js"></script>
-    <script src="/vendor/zxing-browser.min.js"></script>
-    <script src="/app.js"></script>
+    <div id="root"></div>
+    <script src="/app.js" defer></script>
   </body>
 </html>
