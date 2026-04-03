@@ -7,13 +7,13 @@ import {
   isSupportedFormat,
   isValidForFormat
 } from './barcodeUtils.js';
-import { isTransientDecodeError } from './scannerDecode.js';
+import { decodeCurrentFrame, isTransientDecodeError } from './scannerDecode.js';
 import { describeCameraError, requestBestAvailableStream, stopTracks } from './scannerEnv.js';
 
 const SUPPORTED_FORMATS = [
+  BarcodeFormat.CODE_128,
   BarcodeFormat.EAN_13,
   BarcodeFormat.EAN_8,
-  BarcodeFormat.CODE_128,
   BarcodeFormat.UPC_A,
   BarcodeFormat.UPC_E,
   BarcodeFormat.QR_CODE
@@ -121,7 +121,7 @@ export default function App() {
   const runtimeRef = useRef({
     candidateHits: 0,
     candidateText: '',
-    controls: null,
+    frameTimerId: 0,
     destroyed: false,
     fatalDecodeHits: 0,
     isScanning: false,
@@ -181,6 +181,15 @@ export default function App() {
     }
   }
 
+  function clearFrameTimer() {
+    const runtime = runtimeRef.current;
+
+    if (runtime.frameTimerId) {
+      window.clearTimeout(runtime.frameTimerId);
+      runtime.frameTimerId = 0;
+    }
+  }
+
   function clearVideoElement() {
     const video = videoRef.current;
 
@@ -232,16 +241,7 @@ export default function App() {
     const runtime = runtimeRef.current;
 
     clearScanTimeout();
-
-    if (runtime.controls?.stop) {
-      try {
-        runtime.controls.stop();
-      } catch (error) {
-        console.warn('Falha ao interromper os controles do scanner.', error);
-      }
-    }
-
-    runtime.controls = null;
+    clearFrameTimer();
 
     if (runtime.stream) {
       stopTracks(runtime.stream);
@@ -295,6 +295,103 @@ export default function App() {
     if (now - runtime.lastFailureNoticeAt > 3500) {
       runtime.lastFailureNoticeAt = now;
       setStatus('guiding', 'Posicione o código de barras dentro da moldura e aguarde o foco ficar nítido.');
+    }
+  }
+
+  function getScanIntervalMs() {
+    const userAgent = window.navigator.userAgent || '';
+    const isIosLike = /iPhone|iPad|iPod/i.test(userAgent);
+
+    return isIosLike ? 180 : 120;
+  }
+
+  function scheduleFrameDecode() {
+    clearFrameTimer();
+
+    runtimeRef.current.frameTimerId = window.setTimeout(() => {
+      void runFrameDecode();
+    }, getScanIntervalMs());
+  }
+
+  async function waitForVideoReadiness(video) {
+    if (!video) {
+      throw new Error('VIDEO_ELEMENT_NOT_FOUND');
+    }
+
+    const playAttempt = video.play();
+
+    if (playAttempt && typeof playAttempt.then === 'function') {
+      await playAttempt.catch(() => {});
+    }
+
+    if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+      return;
+    }
+
+    await new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId = window.setTimeout(() => {
+        cleanup();
+        reject(new Error('VIDEO_READY_TIMEOUT'));
+      }, 4000);
+
+      function cleanup() {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        window.clearTimeout(timeoutId);
+        video.removeEventListener('loadedmetadata', handleReady);
+        video.removeEventListener('canplay', handleReady);
+        video.removeEventListener('playing', handleReady);
+      }
+
+      function handleReady() {
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          cleanup();
+          resolve();
+        }
+      }
+
+      video.addEventListener('loadedmetadata', handleReady);
+      video.addEventListener('canplay', handleReady);
+      video.addEventListener('playing', handleReady);
+    });
+  }
+
+  async function runFrameDecode() {
+    const runtime = runtimeRef.current;
+    const video = videoRef.current;
+
+    if (!runtime.isScanning || runtime.destroyed || !runtime.reader || !video) {
+      return;
+    }
+
+    if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      scheduleFrameDecode();
+      return;
+    }
+
+    try {
+      const { result, error } = decodeCurrentFrame(runtime.reader, runtime, video);
+
+      if (result) {
+        runtime.fatalDecodeHits = 0;
+        await finalizeSuccessfulRead(
+          result.getText(),
+          result.getBarcodeFormat ? getFormatLabel(result.getBarcodeFormat(), FORMAT_LABELS) : ''
+        );
+        return;
+      }
+
+      handleDecodeFailure(error);
+    } catch (error) {
+      handleDecodeFailure(error);
+    }
+
+    if (runtimeRef.current.isScanning) {
+      scheduleFrameDecode();
     }
   }
 
@@ -420,13 +517,8 @@ export default function App() {
       prepareVideoElement();
       const stream = await requestBestAvailableStream();
       const hints = createDecoderHints();
-      const reader = new BrowserMultiFormatReader(hints, {
-        delayBetweenScanAttempts: 60,
-        delayBetweenScanSuccess: 250,
-        tryPlayVideoTimeout: 5000
-      });
-
-      reader.possibleFormats = SUPPORTED_FORMATS;
+      const reader = new BrowserMultiFormatReader(hints);
+      const video = videoRef.current;
 
       runtime.stream = stream;
       runtime.reader = reader;
@@ -443,26 +535,12 @@ export default function App() {
         torchAvailable: runtime.torchAvailable
       });
       setStatus('reading');
+      if (video) {
+        video.srcObject = stream;
+        await waitForVideoReadiness(video);
+      }
       startScanTimeout();
-
-      runtime.controls = await reader.decodeFromStream(stream, video, (result, error, controls) => {
-        if (!runtimeRef.current.isScanning || runtimeRef.current.destroyed) {
-          return;
-        }
-
-        runtimeRef.current.controls = controls;
-
-        if (result) {
-          runtimeRef.current.fatalDecodeHits = 0;
-          void finalizeSuccessfulRead(
-            result.getText(),
-            result.getBarcodeFormat ? getFormatLabel(result.getBarcodeFormat(), FORMAT_LABELS) : ''
-          );
-          return;
-        }
-
-        handleDecodeFailure(error);
-      });
+      scheduleFrameDecode();
     } catch (error) {
       console.error('Falha ao iniciar o scanner.', error);
       showDiagnostic(error, 'Inicialização');

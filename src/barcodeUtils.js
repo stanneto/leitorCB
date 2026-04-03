@@ -77,7 +77,15 @@ export function isValidForFormat(text, formatName) {
   }
 
   if (formatName === 'CODE-128') {
-    return text.length >= 6 && /^[\x20-\x7E]+$/.test(text);
+    if (!/^[\x20-\x7E]+$/.test(text) || text.length < 6) {
+      return false;
+    }
+
+    if (/^\d{6,14}$/.test(text)) {
+      return true;
+    }
+
+    return /^[A-Z0-9\-./ ]{6,24}$/i.test(text);
   }
 
   if (formatName === 'QR Code') {
@@ -88,7 +96,11 @@ export function isValidForFormat(text, formatName) {
 }
 
 export function getRequiredConfirmationHits(formatName) {
-  if (formatName === 'CODE-128' || formatName === 'QR Code') {
+  if (formatName === 'CODE-128') {
+    return 2;
+  }
+
+  if (formatName === 'QR Code') {
     return 2;
   }
 

@@ -50,8 +50,10 @@ function getPrimaryVideoConstraints() {
     audio: false,
     video: {
       facingMode: { ideal: 'environment' },
+      frameRate: { ideal: 24, max: 30 },
       width: { ideal: isIosDevice() ? 1920 : 1280 },
-      height: { ideal: isIosDevice() ? 1080 : 720 }
+      height: { ideal: isIosDevice() ? 1080 : 720 },
+      aspectRatio: { ideal: 1.7777777778 }
     }
   };
 }
@@ -60,6 +62,7 @@ function getFallbackVideoConstraints() {
   return {
     audio: false,
     video: {
+      frameRate: { ideal: 24, max: 30 },
       width: { ideal: 1280 },
       height: { ideal: 720 }
     }
@@ -147,6 +150,7 @@ export async function requestBestAvailableStream() {
         audio: false,
         video: {
           deviceId: { exact: preferredDevice.deviceId },
+          frameRate: { ideal: 24, max: 30 },
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }

@@ -30,25 +30,32 @@ export function getDecodeRegions(video) {
     return [];
   }
 
+  const linearTight = {
+    sx: Math.round(frameWidth * 0.14),
+    sy: Math.round(frameHeight * 0.41),
+    sw: Math.round(frameWidth * 0.72),
+    sh: Math.round(frameHeight * 0.12)
+  };
+
   const linearWide = {
     sx: Math.round(frameWidth * 0.08),
-    sy: Math.round(frameHeight * 0.38),
+    sy: Math.round(frameHeight * 0.37),
     sw: Math.round(frameWidth * 0.84),
     sh: Math.round(frameHeight * 0.18)
   };
 
   const linearMedium = {
-    sx: Math.round(frameWidth * 0.12),
-    sy: Math.round(frameHeight * 0.3),
-    sw: Math.round(frameWidth * 0.76),
-    sh: Math.round(frameHeight * 0.28)
+    sx: Math.round(frameWidth * 0.1),
+    sy: Math.round(frameHeight * 0.31),
+    sw: Math.round(frameWidth * 0.8),
+    sh: Math.round(frameHeight * 0.24)
   };
 
   const linearFull = {
     sx: Math.round(frameWidth * 0.04),
     sy: Math.round(frameHeight * 0.24),
     sw: Math.round(frameWidth * 0.92),
-    sh: Math.round(frameHeight * 0.42)
+    sh: Math.round(frameHeight * 0.38)
   };
 
   const squareSize = Math.round(Math.min(frameWidth, frameHeight) * 0.68);
@@ -66,7 +73,7 @@ export function getDecodeRegions(video) {
     sh: frameHeight
   };
 
-  return [linearWide, linearMedium, linearFull, centerSquare, fullFrame];
+  return [linearTight, linearWide, linearMedium, linearFull, centerSquare, fullFrame];
 }
 
 export function drawDecodeRegion(runtime, video, region) {

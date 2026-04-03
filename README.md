@@ -2,6 +2,15 @@
 
 Projeto em Node.js com front-end em React, interface mobile-first e leitura em tempo real com **ZXing**, mantendo suporte a HTTPS local para uso no iPhone.
 
+## Motor de leitura
+
+Este aplicativo usa **ZXing** como mecanismo principal de leitura.
+
+- `@zxing/browser` para o reader no navegador
+- `@zxing/library` para decodificacao dos frames
+- sem dependencia de `html5-qrcode`
+- sem dependencia de `BarcodeDetector` nativo como mecanismo principal
+
 ## Recursos
 
 - Servidor local em Node.js com HTTPS automatico quando houver certificado local
@@ -137,8 +146,10 @@ O projeto usa:
 - `getUserMedia`
 - preferencia por `facingMode: environment`
 - ZXing como mecanismo principal de decodificacao em tempo real
+- recortes horizontais progressivos para priorizar leitura de codigos 1D como `Code 128`
 - video inline para evitar comportamento inconsistente do Safari
 - tentativa de foco continuo e ajuste moderado de zoom quando o navegador expoe esses controles
+- cadence de leitura controlada para reduzir aquecimento e travamentos em iPhone
 - confirmacao da mesma leitura em mais de um frame para reduzir falso positivo
 - timeout de leitura com encerramento limpo da camera
 
