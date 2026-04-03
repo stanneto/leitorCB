@@ -365,6 +365,17 @@
     previewVideo.setAttribute('webkit-playsinline', 'true');
     previewVideo.muted = true;
     previewVideo.playsInline = true;
+    previewVideo.style.position = 'absolute';
+    previewVideo.style.inset = '0';
+    previewVideo.style.display = 'block';
+    previewVideo.style.width = '100%';
+    previewVideo.style.height = '100%';
+    previewVideo.style.minWidth = '100%';
+    previewVideo.style.minHeight = '100%';
+    previewVideo.style.maxWidth = 'none';
+    previewVideo.style.maxHeight = 'none';
+    previewVideo.style.objectFit = 'cover';
+    previewVideo.style.objectPosition = 'center center';
   }
 
   async function attachStreamToPreview(stream) {

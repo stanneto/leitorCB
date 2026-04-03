@@ -183,6 +183,13 @@ h1 {
 .camera-preview {
   position: absolute;
   inset: 0;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100%;
+  min-height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   object-position: center center;
   background: #020617;
