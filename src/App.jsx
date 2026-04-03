@@ -881,7 +881,7 @@ export default function App() {
 
       <section className="result-dock" aria-live="polite">
         <div className="result-inline-header">
-          <label className="result-inline-label" htmlFor="result-inline-code">Conteudo lido</label>
+          <p className="result-inline-label">Conteudo lido</p>
           <button
             className="button button-inline"
             type="button"
@@ -891,7 +891,9 @@ export default function App() {
             Copiar codigo
           </button>
         </div>
-        <input className="result-inline-input" id="result-inline-code" type="text" value={displayedCode} readOnly />
+        <div className="result-inline-value" role="status" aria-live="polite">
+          {displayedCode || '-'}
+        </div>
         <p className="result-inline-meta">
           {getReadSourceLabel(displayedFormat)}
         </p>

@@ -346,17 +346,19 @@ h1 {
   backdrop-filter: blur(14px);
 }
 
-.result-inline-input {
+.result-inline-value {
   width: 100%;
   min-height: 52px;
   padding: 14px 16px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(148, 163, 184, 0.22);
   background: rgba(2, 6, 23, 0.88);
+  display: flex;
+  align-items: center;
   font-family: var(--font-mono);
   font-size: clamp(1rem, 4.8vw, 1.25rem);
   color: var(--text-main);
-  outline: none;
+  word-break: break-word;
 }
 
 .button-inline {
