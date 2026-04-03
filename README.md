@@ -6,7 +6,6 @@ Projeto em Node.js com front-end em React, interface mobile-first e leitura em t
 
 Este aplicativo usa **ZXing** como mecanismo principal de leitura.
 
-- `@zxing/browser` para o reader no navegador
 - `@zxing/library` para decodificacao dos frames
 - sem dependencia de `html5-qrcode`
 - sem dependencia de `BarcodeDetector` nativo como mecanismo principal

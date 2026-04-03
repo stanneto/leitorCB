@@ -45,8 +45,8 @@ const STATUS_CATALOG = {
     text: 'Mantenha o aparelho firme enquanto o ZXing tenta decodificar o codigo Code 128.'
   },
   ocr: {
-    pill: 'Tentando OCR numerico',
-    text: 'O leitor esta tentando reconhecer apenas os digitos da etiqueta como apoio ao Code 128.'
+    pill: 'Tentando OCR da numeracao',
+    text: 'O leitor esta tentando reconhecer a numeracao visivel da etiqueta, sempre com 8 digitos.'
   },
   success: {
     pill: 'Codigo detectado com sucesso',
@@ -83,10 +83,6 @@ const STATUS_CATALOG = {
   initError: {
     pill: 'Falha ao iniciar video',
     text: 'O navegador nao conseguiu iniciar o video da camera com seguranca.'
-  },
-  libraryError: {
-    pill: 'Falha no leitor',
-    text: 'O ZXing encontrou um erro inesperado durante a leitura.'
   },
   stopped: {
     pill: 'Camera parada',
@@ -169,9 +165,7 @@ export default function App() {
     lastAcceptedAt: 0,
     lastAcceptedCode: '',
     lastFailureNoticeAt: 0,
-    lastOcrError: null,
     lastOcrAttemptAt: 0,
-    lastOcrProgress: null,
     ocrInFlight: false,
     ocrWorker: null,
     readingStatusShown: false,
@@ -215,7 +209,6 @@ export default function App() {
     runtime.candidateHits = 0;
     runtime.candidateText = '';
     runtime.fatalDecodeHits = 0;
-    runtime.lastOcrError = null;
     runtime.lastOcrAttemptAt = 0;
     runtime.readingStatusShown = false;
   }
@@ -515,7 +508,7 @@ export default function App() {
     } catch (error) {
       console.warn('Falha na tentativa de OCR.', error);
       showDiagnostic(error, 'OCR');
-      setStatus('ocr', 'O OCR nao conseguiu reconhecer a numeracao da etiqueta nesta tentativa.');
+      setStatus('ocr', 'O OCR nao conseguiu reconhecer uma numeracao de 8 digitos nesta tentativa.');
     }
   }
 

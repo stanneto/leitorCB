@@ -1,7 +1,6 @@
 import { createWorker, PSM } from 'tesseract.js';
 
-const OCR_MIN_LENGTH = 6;
-const OCR_MAX_LENGTH = 20;
+const OCR_EXPECTED_LENGTH = 8;
 const OCR_RETRY_INTERVAL_MS = 2400;
 
 function ensureOcrCanvas(runtime, key, width, height) {
@@ -113,10 +112,8 @@ function normalizeOcrText(text) {
 function getCandidateScore(text, confidence) {
   let score = typeof confidence === 'number' ? confidence : 0;
 
-  if (text.length === 8) {
-    score += 18;
-  } else if (text.length >= 6 && text.length <= 10) {
-    score += 10;
+  if (text.length === OCR_EXPECTED_LENGTH) {
+    score += 25;
   }
 
   if (text.startsWith('0')) {
@@ -127,7 +124,7 @@ function getCandidateScore(text, confidence) {
 }
 
 export function isValidOcrCode(text) {
-  return /^\d+$/.test(text) && text.length >= OCR_MIN_LENGTH && text.length <= OCR_MAX_LENGTH;
+  return /^\d{8}$/.test(text);
 }
 
 async function getOcrWorker(runtime) {
@@ -136,11 +133,7 @@ async function getOcrWorker(runtime) {
   }
 
   const worker = await createWorker('eng', 1, {
-    logger: (message) => {
-      if (message?.status) {
-        runtime.lastOcrProgress = message;
-      }
-    }
+    logger: () => {}
   });
 
   await worker.setParameters({
@@ -242,9 +235,6 @@ export async function tryRecognizeNumericOcr(runtime, video) {
       confidence: bestCandidate.confidence,
       text: bestCandidate.text
     };
-  } catch (error) {
-    runtime.lastOcrError = error;
-    throw error;
   } finally {
     runtime.ocrInFlight = false;
   }
