@@ -13,6 +13,7 @@ import {
   requestBestAvailableStream,
   stopTracks
 } from './scannerEnv.js';
+import { terminateOcrWorker, tryRecognizeNumericOcr } from './ocrFallback.js';
 
 const SUPPORTED_FORMATS = [
   BarcodeFormat.CODE_128
@@ -42,6 +43,10 @@ const STATUS_CATALOG = {
   reading: {
     pill: 'Lendo Code 128',
     text: 'Mantenha o aparelho firme enquanto o ZXing tenta decodificar o codigo Code 128.'
+  },
+  ocr: {
+    pill: 'Tentando OCR numerico',
+    text: 'O leitor esta tentando reconhecer apenas os digitos da etiqueta como apoio ao Code 128.'
   },
   success: {
     pill: 'Codigo detectado com sucesso',
@@ -164,6 +169,10 @@ export default function App() {
     lastAcceptedAt: 0,
     lastAcceptedCode: '',
     lastFailureNoticeAt: 0,
+    lastOcrAttemptAt: 0,
+    lastOcrProgress: null,
+    ocrInFlight: false,
+    ocrWorker: null,
     readingStatusShown: false,
     reader: null,
     scanActivatedAt: 0,
@@ -205,6 +214,7 @@ export default function App() {
     runtime.candidateHits = 0;
     runtime.candidateText = '';
     runtime.fatalDecodeHits = 0;
+    runtime.lastOcrAttemptAt = 0;
     runtime.readingStatusShown = false;
   }
 
@@ -327,6 +337,7 @@ export default function App() {
     runtime.scanActivatedAt = 0;
     runtime.torchAvailable = false;
     runtime.torchOn = false;
+    runtime.ocrInFlight = false;
     clearVideoElement();
     resetDetectionBuffer();
   }
@@ -471,6 +482,39 @@ export default function App() {
     }
   }
 
+  async function attemptOcrFallback() {
+    const runtime = runtimeRef.current;
+    const video = videoRef.current;
+
+    if (
+      !runtime.isScanning ||
+      runtime.destroyed ||
+      !video ||
+      runtime.ocrInFlight ||
+      Date.now() - runtime.scanActivatedAt < 3500
+    ) {
+      return;
+    }
+
+    try {
+      setStatus('ocr');
+      const ocrResult = await tryRecognizeNumericOcr(runtime, video);
+
+      if (!ocrResult || !runtimeRef.current.isScanning) {
+        return;
+      }
+
+      console.info('OCR numerico detectou um valor.', {
+        confidence: ocrResult.confidence,
+        text: ocrResult.text
+      });
+
+      await finalizeSuccessfulRead(ocrResult.text, 'OCR NUMERICO');
+    } catch (error) {
+      console.warn('Falha na tentativa de OCR.', error);
+    }
+  }
+
   async function finalizeSuccessfulRead(text, formatName) {
     const runtime = runtimeRef.current;
     const normalized = String(text || '').trim();
@@ -532,6 +576,7 @@ export default function App() {
     if (isTransientDecodeError(error, runtime.scanActivatedAt)) {
       runtime.fatalDecodeHits = 0;
       updateGuidanceFromFailure();
+      void attemptOcrFallback();
       return;
     }
 
@@ -548,6 +593,7 @@ export default function App() {
     }
 
     updateGuidanceFromFailure();
+    void attemptOcrFallback();
   }
 
   function startScanTimeout() {
@@ -732,6 +778,7 @@ export default function App() {
     return () => {
       runtimeRef.current.destroyed = true;
       void stopScanner({ keepStatus: true });
+      void terminateOcrWorker(runtimeRef.current);
     };
   }, []);
 
