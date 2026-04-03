@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "build": "node scripts/build-client.mjs",
+    "vercel-build": "node scripts/build-client.mjs",
     "start": "npm run build && node server.js",
     "dev": "npm run build && node server.js",
     "local-ip": "node scripts/print-local-ip.mjs",

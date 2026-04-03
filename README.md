@@ -157,3 +157,23 @@ O projeto usa:
 - Para teste real no iPhone fora de `localhost`, HTTPS e obrigatorio.
 - O fato de funcionar em `localhost` no desktop nao garante o mesmo comportamento no iPhone.
 - Se algum aparelho abrir a camera frontal, o app tenta reapontar para a traseira sem depender de `BarcodeDetector`.
+
+## Deploy no Vercel
+
+Use o Vercel em HTTPS com estas configuracoes:
+
+- Build Command: `npm run build`
+- Output Directory: `public`
+
+Este projeto inclui `vercel.json` para:
+
+- publicar o bundle gerado em `public`
+- manter fallback de SPA para `index.html`
+- explicitar `Permissions-Policy: camera=(self)`
+
+Se a camera nao abrir no Vercel:
+
+- abra o site direto no dominio HTTPS, fora de iframe ou webview
+- confirme que `https://SEU-DEPLOY.vercel.app/app.js` responde `200`
+- confirme no console que `window.isSecureContext` e `true`
+- no iPhone, prefira Safari ou Chrome em iOS 15.1 ou superior
