@@ -558,16 +558,6 @@ export default function App() {
       text: normalized
     });
 
-    hideDiagnostic();
-    setStatus('success');
-    await stopScanner({ keepStatus: true });
-
-    if (navigator.vibrate) {
-      navigator.vibrate(90);
-    }
-
-    await playSuccessTone();
-
     patchUi({
       copyFeedback: '',
       inlineCode: normalized,
@@ -577,6 +567,16 @@ export default function App() {
       resultCode: normalized,
       resultFormat: formatName
     });
+
+    hideDiagnostic();
+    setStatus('success');
+    await stopScanner({ keepStatus: true });
+
+    if (navigator.vibrate) {
+      navigator.vibrate(90);
+    }
+
+    await playSuccessTone();
   }
 
   function handleDecodeFailure(error) {
