@@ -1,7 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BarcodeFormat, DecodeHintType, MultiFormatReader } from '@zxing/library';
-import { getFormatLabel, getRequiredConfirmationHits, isSupportedFormat, isValidForFormat } from './barcodeUtils.js';
-import { decodeCurrentFrame, isTransientDecodeError } from './scannerDecode.js';
+import { BrowserMultiFormatReader } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
+import {
+  getFormatLabel,
+  getRequiredConfirmationHits,
+  isSupportedFormat,
+  isValidForFormat
+} from './barcodeUtils.js';
+import { isTransientDecodeError } from './scannerDecode.js';
 import { describeCameraError, requestBestAvailableStream, stopTracks } from './scannerEnv.js';
 
 const SUPPORTED_FORMATS = [
@@ -23,19 +29,58 @@ const FORMAT_LABELS = {
 };
 
 const STATUS_CATALOG = {
-  idle: { pill: 'Ative a câmera', text: '' },
-  requesting: { pill: 'Solicitando câmera', text: 'Confirme a permissão no navegador para usar a câmera traseira.' },
-  guiding: { pill: 'Posicione o código de barras', text: 'Centralize o código na moldura e aguarde o foco ficar nítido.' },
-  reading: { pill: 'Lendo código de barras', text: 'Segure o aparelho com firmeza enquanto o leitor tenta identificar o código.' },
-  success: { pill: 'Código detectado', text: 'Leitura concluída com sucesso.' },
-  timeout: { pill: 'Tempo de leitura encerrado', text: 'Não encontramos um código dentro do tempo esperado. Toque em Ler novamente e tente outra distância.' },
-  insecure: { pill: 'HTTPS necessário', text: 'No iPhone, a câmera exige HTTPS ou localhost. Abra este app em https:// para testar de forma confiável.' },
-  denied: { pill: 'Permissão negada', text: 'Libere o acesso à câmera nas configurações do navegador e tente novamente.' },
-  noCamera: { pill: 'Nenhuma câmera encontrada', text: 'Não foi encontrada uma câmera disponível neste aparelho.' },
-  unavailable: { pill: 'Não foi possível acessar a câmera', text: 'Feche outros apps que estejam usando a câmera e tente novamente.' },
-  initError: { pill: 'Falha ao iniciar vídeo', text: 'O navegador não conseguiu iniciar a visualização da câmera com segurança.' },
-  libraryError: { pill: 'Falha no leitor', text: 'O leitor encontrou um erro inesperado durante a leitura. Tente novamente.' },
-  stopped: { pill: 'Câmera parada', text: 'Toque em Iniciar leitura para abrir a câmera novamente.' }
+  idle: {
+    pill: 'Ative a câmera',
+    text: ''
+  },
+  requesting: {
+    pill: 'Solicitando câmera',
+    text: 'Confirme a permissão no navegador para usar a câmera traseira.'
+  },
+  guiding: {
+    pill: 'Posicione o código de barras',
+    text: 'Centralize o código na moldura e aguarde o foco ficar nítido.'
+  },
+  reading: {
+    pill: 'Lendo código de barras',
+    text: 'Segure o aparelho com firmeza enquanto o leitor tenta identificar o código.'
+  },
+  success: {
+    pill: 'Código detectado',
+    text: 'Leitura concluída com sucesso.'
+  },
+  timeout: {
+    pill: 'Tempo de leitura encerrado',
+    text: 'Não encontramos um código dentro do tempo esperado. Toque em Ler novamente e tente outra distância.'
+  },
+  insecure: {
+    pill: 'HTTPS necessário',
+    text: 'No iPhone, a câmera exige HTTPS ou localhost. Abra este app em https:// para testar de forma confiável.'
+  },
+  denied: {
+    pill: 'Permissão negada',
+    text: 'Libere o acesso à câmera nas configurações do navegador e tente novamente.'
+  },
+  noCamera: {
+    pill: 'Nenhuma câmera encontrada',
+    text: 'Não foi encontrada uma câmera disponível neste aparelho.'
+  },
+  unavailable: {
+    pill: 'Não foi possível acessar a câmera',
+    text: 'Feche outros apps que estejam usando a câmera e tente novamente.'
+  },
+  initError: {
+    pill: 'Falha ao iniciar vídeo',
+    text: 'O navegador não conseguiu iniciar a visualização da câmera com segurança.'
+  },
+  libraryError: {
+    pill: 'Falha no leitor',
+    text: 'O leitor encontrou um erro inesperado durante a leitura. Tente novamente.'
+  },
+  stopped: {
+    pill: 'Câmera parada',
+    text: 'Toque em Iniciar leitura para abrir a câmera novamente.'
+  }
 };
 
 function createDecoderHints() {
@@ -76,8 +121,7 @@ export default function App() {
   const runtimeRef = useRef({
     candidateHits: 0,
     candidateText: '',
-    captureCanvas: null,
-    captureContext: null,
+    controls: null,
     destroyed: false,
     fatalDecodeHits: 0,
     isScanning: false,
@@ -86,7 +130,6 @@ export default function App() {
     lastAcceptedAt: 0,
     lastAcceptedCode: '',
     lastFailureNoticeAt: 0,
-    loopId: 0,
     reader: null,
     scanActivatedAt: 0,
     stream: null,
@@ -131,17 +174,10 @@ export default function App() {
 
   function clearScanTimeout() {
     const runtime = runtimeRef.current;
+
     if (runtime.timeoutId) {
       window.clearTimeout(runtime.timeoutId);
       runtime.timeoutId = 0;
-    }
-  }
-
-  function clearScanLoop() {
-    const runtime = runtimeRef.current;
-    if (runtime.loopId) {
-      window.clearTimeout(runtime.loopId);
-      runtime.loopId = 0;
     }
   }
 
@@ -177,29 +213,6 @@ export default function App() {
     video.playsInline = true;
   }
 
-  async function attachStreamToPreview(stream) {
-    const video = videoRef.current;
-
-    if (!video) {
-      throw new Error('Elemento de vídeo indisponível.');
-    }
-
-    video.srcObject = stream;
-
-    if (video.readyState < 1) {
-      await new Promise((resolve) => {
-        function onLoadedMetadata() {
-          video.removeEventListener('loadedmetadata', onLoadedMetadata);
-          resolve();
-        }
-
-        video.addEventListener('loadedmetadata', onLoadedMetadata);
-      });
-    }
-
-    await video.play();
-  }
-
   function detectTorchAvailability() {
     const track = getActiveVideoTrack();
 
@@ -219,7 +232,16 @@ export default function App() {
     const runtime = runtimeRef.current;
 
     clearScanTimeout();
-    clearScanLoop();
+
+    if (runtime.controls?.stop) {
+      try {
+        runtime.controls.stop();
+      } catch (error) {
+        console.warn('Falha ao interromper os controles do scanner.', error);
+      }
+    }
+
+    runtime.controls = null;
 
     if (runtime.stream) {
       stopTracks(runtime.stream);
@@ -231,8 +253,6 @@ export default function App() {
     runtime.scanActivatedAt = 0;
     runtime.torchAvailable = false;
     runtime.torchOn = false;
-    runtime.captureCanvas = null;
-    runtime.captureContext = null;
     clearVideoElement();
     resetDetectionBuffer();
   }
@@ -320,62 +340,32 @@ export default function App() {
     });
   }
 
-  function scheduleScanLoop(delayMs) {
-    clearScanLoop();
-
-    if (!runtimeRef.current.isScanning) {
-      return;
-    }
-
-    runtimeRef.current.loopId = window.setTimeout(() => {
-      void runScanLoop();
-    }, delayMs);
-  }
-
-  async function runScanLoop() {
+  function handleDecodeFailure(error) {
     const runtime = runtimeRef.current;
-    const video = videoRef.current;
 
-    if (!runtime.isScanning || !video) {
+    if (!error) {
       return;
     }
 
-    if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
-      scheduleScanLoop(120);
-      return;
-    }
-
-    const outcome = decodeCurrentFrame(runtime.reader, runtime, video);
-
-    if (outcome.result) {
-      runtime.fatalDecodeHits = 0;
-      await finalizeSuccessfulRead(
-        outcome.result.getText(),
-        outcome.result.getBarcodeFormat ? getFormatLabel(outcome.result.getBarcodeFormat(), FORMAT_LABELS) : ''
-      );
-      return;
-    }
-
-    if (outcome.error && !isTransientDecodeError(outcome.error, runtime.scanActivatedAt)) {
-      runtime.fatalDecodeHits += 1;
-
-      if (runtime.fatalDecodeHits >= 3) {
-        console.warn('Falha de leitura mantida, mas o scanner seguirá tentando até o timeout.', outcome.error);
-        showDiagnostic(outcome.error, 'ZXing');
-        setStatus(
-          'reading',
-          'O leitor ainda não conseguiu decodificar o código. Ajuste distância, foco e iluminação; a tentativa continuará até o tempo acabar.'
-        );
-        runtime.fatalDecodeHits = 0;
-      } else {
-        updateGuidanceFromFailure();
-      }
-    } else {
+    if (isTransientDecodeError(error, runtime.scanActivatedAt)) {
       runtime.fatalDecodeHits = 0;
       updateGuidanceFromFailure();
+      return;
     }
 
-    scheduleScanLoop(90);
+    runtime.fatalDecodeHits += 1;
+
+    if (runtime.fatalDecodeHits >= 5) {
+      showDiagnostic(error, 'ZXing');
+      setStatus(
+        'reading',
+        'O leitor ainda não conseguiu decodificar o código. Ajuste distância, foco e iluminação; a tentativa continuará até o tempo acabar.'
+      );
+      runtime.fatalDecodeHits = 0;
+      return;
+    }
+
+    updateGuidanceFromFailure();
   }
 
   function startScanTimeout() {
@@ -397,8 +387,9 @@ export default function App() {
 
   async function startScanner() {
     const runtime = runtimeRef.current;
+    const video = videoRef.current;
 
-    if (runtime.isStarting || runtime.isScanning) {
+    if (runtime.isStarting || runtime.isScanning || !video) {
       return;
     }
 
@@ -428,10 +419,14 @@ export default function App() {
     try {
       prepareVideoElement();
       const stream = await requestBestAvailableStream();
-      await attachStreamToPreview(stream);
+      const hints = createDecoderHints();
+      const reader = new BrowserMultiFormatReader(hints, {
+        delayBetweenScanAttempts: 60,
+        delayBetweenScanSuccess: 250,
+        tryPlayVideoTimeout: 5000
+      });
 
-      const reader = new MultiFormatReader();
-      reader.setHints(createDecoderHints());
+      reader.possibleFormats = SUPPORTED_FORMATS;
 
       runtime.stream = stream;
       runtime.reader = reader;
@@ -449,7 +444,25 @@ export default function App() {
       });
       setStatus('reading');
       startScanTimeout();
-      scheduleScanLoop(120);
+
+      runtime.controls = await reader.decodeFromStream(stream, video, (result, error, controls) => {
+        if (!runtimeRef.current.isScanning || runtimeRef.current.destroyed) {
+          return;
+        }
+
+        runtimeRef.current.controls = controls;
+
+        if (result) {
+          runtimeRef.current.fatalDecodeHits = 0;
+          void finalizeSuccessfulRead(
+            result.getText(),
+            result.getBarcodeFormat ? getFormatLabel(result.getBarcodeFormat(), FORMAT_LABELS) : ''
+          );
+          return;
+        }
+
+        handleDecodeFailure(error);
+      });
     } catch (error) {
       console.error('Falha ao iniciar o scanner.', error);
       showDiagnostic(error, 'Inicialização');
