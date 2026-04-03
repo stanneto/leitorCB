@@ -49,50 +49,19 @@ function expandUpceToUpca(text) {
 }
 
 export function isSupportedFormat(formatName) {
-  return (
-    formatName === 'EAN-13' ||
-    formatName === 'EAN-8' ||
-    formatName === 'CODE-128' ||
-    formatName === 'UPC-A' ||
-    formatName === 'UPC-E' ||
-    formatName === 'QR Code'
-  );
+  return formatName === 'CODE-128';
 }
 
 export function isValidForFormat(text, formatName) {
-  if (formatName === 'EAN-13') {
-    return text.length === 13 && hasValidModulo10CheckDigit(text);
-  }
-
-  if (formatName === 'EAN-8') {
-    return text.length === 8 && hasValidModulo10CheckDigit(text);
-  }
-
-  if (formatName === 'UPC-A') {
-    return text.length === 12 && hasValidModulo10CheckDigit(text);
-  }
-
-  if (formatName === 'UPC-E') {
-    return text.length === 8 && hasValidModulo10CheckDigit(expandUpceToUpca(text));
-  }
-
   if (formatName === 'CODE-128') {
-    if (!/^[\x20-\x7E]+$/.test(text) || text.length < 6) {
+    if (!/^\d+$/.test(text) || text.length < 6) {
       return false;
     }
 
-    if (/^\d{6,14}$/.test(text)) {
-      return true;
-    }
-
-    return /^[A-Z0-9\-./ ]{6,24}$/i.test(text);
+    return text.length <= 20;
   }
 
-  if (formatName === 'QR Code') {
-    return text.length >= 4;
-  }
-
-  return true;
+  return false;
 }
 
 export function getRequiredConfirmationHits(formatName) {
@@ -100,9 +69,5 @@ export function getRequiredConfirmationHits(formatName) {
     return 2;
   }
 
-  if (formatName === 'QR Code') {
-    return 2;
-  }
-
-  return 1;
+  return 0;
 }

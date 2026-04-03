@@ -15,21 +15,11 @@ import {
 } from './scannerEnv.js';
 
 const SUPPORTED_FORMATS = [
-  BarcodeFormat.CODE_128,
-  BarcodeFormat.EAN_13,
-  BarcodeFormat.EAN_8,
-  BarcodeFormat.UPC_A,
-  BarcodeFormat.UPC_E,
-  BarcodeFormat.QR_CODE
+  BarcodeFormat.CODE_128
 ];
 
 const FORMAT_LABELS = {
-  [BarcodeFormat.EAN_13]: 'EAN-13',
-  [BarcodeFormat.EAN_8]: 'EAN-8',
-  [BarcodeFormat.CODE_128]: 'CODE-128',
-  [BarcodeFormat.UPC_A]: 'UPC-A',
-  [BarcodeFormat.UPC_E]: 'UPC-E',
-  [BarcodeFormat.QR_CODE]: 'QR Code'
+  [BarcodeFormat.CODE_128]: 'CODE-128'
 };
 
 const STATUS_CATALOG = {
@@ -47,11 +37,11 @@ const STATUS_CATALOG = {
   },
   guiding: {
     pill: 'Posicione o codigo',
-    text: 'Centralize o codigo na moldura e espere a imagem ficar nitida.'
+    text: 'Centralize o codigo Code 128 na moldura e espere a imagem ficar nitida.'
   },
   reading: {
-    pill: 'Lendo codigo de barras',
-    text: 'Mantenha o aparelho firme enquanto o ZXing tenta decodificar o codigo.'
+    pill: 'Lendo Code 128',
+    text: 'Mantenha o aparelho firme enquanto o ZXing tenta decodificar o codigo Code 128.'
   },
   success: {
     pill: 'Codigo detectado com sucesso',
@@ -551,7 +541,7 @@ export default function App() {
       showDiagnostic(error, 'ZXing');
       setStatus(
         'reading',
-        'O leitor ainda nao conseguiu decodificar o codigo. Ajuste distancia, foco e iluminacao; a tentativa vai continuar.'
+        'O leitor ainda nao conseguiu decodificar o Code 128. Ajuste distancia, foco e iluminacao; a tentativa vai continuar.'
       );
       runtime.fatalDecodeHits = 0;
       return;
