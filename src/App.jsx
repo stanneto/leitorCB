@@ -741,7 +741,7 @@ export default function App() {
 
   async function handleCopyCode() {
     try {
-      const copied = await copyText(ui.resultCode || ui.inlineCode);
+      const copied = await copyText(ui.inlineCode || ui.resultCode);
 
       patchUi({
         copyFeedback: copied ? 'Codigo copiado.' : 'Nao foi possivel copiar o codigo automaticamente.'
@@ -822,6 +822,8 @@ export default function App() {
   }, []);
 
   const statusView = getStatusView(ui.statusType, ui.statusOverrideText);
+  const displayedCode = ui.inlineCode || ui.resultCode || '';
+  const displayedFormat = ui.resultFormat || '';
   const startDisabled = ui.isStarting || ui.isScanning || !window.isSecureContext;
   const stopDisabled = !ui.isScanning || ui.isStopping;
   const torchDisabled = !ui.isScanning || ui.isStopping || !ui.torchAvailable;
@@ -880,14 +882,14 @@ export default function App() {
             className="button button-inline"
             type="button"
             onClick={() => void handleCopyCode()}
-            disabled={!ui.inlineCode}
+            disabled={!displayedCode}
           >
             Copiar codigo
           </button>
         </div>
-        <input className="result-inline-input" id="result-inline-code" type="text" value={ui.inlineCode} readOnly />
+        <input className="result-inline-input" id="result-inline-code" type="text" value={displayedCode} readOnly />
         <p className="result-inline-meta">
-          {getReadSourceLabel(ui.resultFormat)}
+          {getReadSourceLabel(displayedFormat)}
         </p>
         {ui.copyFeedback ? <p className="result-inline-feedback">{ui.copyFeedback}</p> : null}
       </section>
