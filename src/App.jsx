@@ -557,7 +557,7 @@ export default function App() {
     });
 
     hideDiagnostic();
-    setStatus('success', `Codigo detectado: ${normalized}`);
+    setStatus('success');
     await stopScanner({ keepStatus: true });
 
     if (navigator.vibrate) {
@@ -757,7 +757,7 @@ export default function App() {
     patchUi({ copyFeedback: '', isResultModalOpen: false });
 
     if (ui.inlineCode) {
-      setStatus('success', `Ultimo codigo lido: ${ui.inlineCode}`);
+      setStatus('success');
       return;
     }
 
