@@ -7,7 +7,12 @@ import {
   isValidForFormat
 } from './barcodeUtils.js';
 import { decodeCurrentFrame, isTransientDecodeError } from './scannerDecode.js';
-import { describeCameraError, requestBestAvailableStream, stopTracks } from './scannerEnv.js';
+import {
+  describeCameraError,
+  isMobileDevice,
+  requestBestAvailableStream,
+  stopTracks
+} from './scannerEnv.js';
 
 const SUPPORTED_FORMATS = [
   BarcodeFormat.CODE_128,
@@ -29,56 +34,68 @@ const FORMAT_LABELS = {
 
 const STATUS_CATALOG = {
   idle: {
-    pill: 'Ative a câmera',
-    text: ''
+    pill: 'Pronto para ler',
+    text: 'Toque em Iniciar leitura para abrir a camera.'
   },
   requesting: {
-    pill: 'Solicitando câmera',
-    text: 'Confirme a permissão no navegador para usar a câmera traseira.'
+    pill: 'Aguardando permissao',
+    text: 'Confirme a permissao da camera no navegador.'
+  },
+  opening: {
+    pill: 'Abrindo camera',
+    text: 'Estamos preparando a camera e o video para iniciar a leitura.'
   },
   guiding: {
-    pill: 'Posicione o código de barras',
-    text: 'Centralize o código na moldura e aguarde o foco ficar nítido.'
+    pill: 'Posicione o codigo',
+    text: 'Centralize o codigo na moldura e espere a imagem ficar nitida.'
   },
   reading: {
-    pill: 'Lendo código de barras',
-    text: 'Segure o aparelho com firmeza enquanto o leitor tenta identificar o código.'
+    pill: 'Lendo codigo de barras',
+    text: 'Mantenha o aparelho firme enquanto o ZXing tenta decodificar o codigo.'
   },
   success: {
-    pill: 'Código detectado',
-    text: 'Leitura concluída com sucesso.'
+    pill: 'Codigo detectado com sucesso',
+    text: 'Leitura concluida.'
   },
   timeout: {
-    pill: 'Tempo de leitura encerrado',
-    text: 'Não encontramos um código dentro do tempo esperado. Toque em Ler novamente e tente outra distância.'
+    pill: 'Nenhum codigo detectado',
+    text: 'Nao foi possivel detectar um codigo dentro do tempo esperado. Ajuste distancia, foco e iluminacao.'
   },
   insecure: {
-    pill: 'HTTPS necessário',
-    text: 'No iPhone, a câmera exige HTTPS ou localhost. Abra este app em https:// para testar de forma confiável.'
+    pill: 'HTTPS necessario',
+    text: 'A camera em iPhone e em muitos navegadores moveis exige HTTPS ou localhost.'
   },
   denied: {
-    pill: 'Permissão negada',
-    text: 'Libere o acesso à câmera nas configurações do navegador e tente novamente.'
+    pill: 'Permissao negada',
+    text: 'Libere o acesso a camera nas configuracoes do navegador e tente novamente.'
   },
   noCamera: {
-    pill: 'Nenhuma câmera encontrada',
-    text: 'Não foi encontrada uma câmera disponível neste aparelho.'
+    pill: 'Nenhuma camera encontrada',
+    text: 'Nao encontramos uma camera disponivel neste aparelho.'
+  },
+  rearCamera: {
+    pill: 'Camera traseira nao disponivel',
+    text: 'Nao foi possivel confirmar a camera traseira no celular. Abra o app por HTTPS e tente novamente.'
   },
   unavailable: {
-    pill: 'Não foi possível acessar a câmera',
-    text: 'Feche outros apps que estejam usando a câmera e tente novamente.'
+    pill: 'Camera indisponivel',
+    text: 'Feche outros apps que possam estar usando a camera e tente novamente.'
+  },
+  unsupported: {
+    pill: 'Navegador nao suportado',
+    text: 'Este navegador nao oferece getUserMedia ou recursos minimos para o leitor.'
   },
   initError: {
-    pill: 'Falha ao iniciar vídeo',
-    text: 'O navegador não conseguiu iniciar a visualização da câmera com segurança.'
+    pill: 'Falha ao iniciar video',
+    text: 'O navegador nao conseguiu iniciar o video da camera com seguranca.'
   },
   libraryError: {
     pill: 'Falha no leitor',
-    text: 'O leitor encontrou um erro inesperado durante a leitura. Tente novamente.'
+    text: 'O ZXing encontrou um erro inesperado durante a leitura.'
   },
   stopped: {
-    pill: 'Câmera parada',
-    text: 'Toque em Iniciar leitura para abrir a câmera novamente.'
+    pill: 'Camera parada',
+    text: 'Toque em Iniciar leitura para tentar novamente.'
   }
 };
 
@@ -91,6 +108,7 @@ function createDecoderHints() {
 
 function createInitialUiState() {
   return {
+    copyFeedback: '',
     diagnostic: null,
     inlineCode: '',
     isResultModalOpen: false,
@@ -115,20 +133,48 @@ function getStatusView(statusType, overrideText) {
   };
 }
 
+async function copyText(text) {
+  const normalized = String(text || '').trim();
+
+  if (!normalized) {
+    return false;
+  }
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(normalized);
+    return true;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = normalized;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand('copy');
+  document.body.removeChild(textarea);
+
+  return copied;
+}
+
 export default function App() {
   const videoRef = useRef(null);
   const runtimeRef = useRef({
+    audioContext: null,
     candidateHits: 0,
     candidateText: '',
-    frameTimerId: 0,
     destroyed: false,
     fatalDecodeHits: 0,
+    frameTimerId: 0,
     isScanning: false,
     isStarting: false,
     isStopping: false,
     lastAcceptedAt: 0,
     lastAcceptedCode: '',
     lastFailureNoticeAt: 0,
+    readingStatusShown: false,
     reader: null,
     scanActivatedAt: 0,
     stream: null,
@@ -145,7 +191,7 @@ export default function App() {
   }
 
   function setStatus(statusType, overrideText = null) {
-    patchUi({ statusType, statusOverrideText: overrideText });
+    patchUi({ statusOverrideText: overrideText, statusType });
   }
 
   function hideDiagnostic() {
@@ -169,6 +215,7 @@ export default function App() {
     runtime.candidateHits = 0;
     runtime.candidateText = '';
     runtime.fatalDecodeHits = 0;
+    runtime.readingStatusShown = false;
   }
 
   function clearScanTimeout() {
@@ -217,8 +264,10 @@ export default function App() {
     video.setAttribute('muted', 'true');
     video.setAttribute('playsinline', 'true');
     video.setAttribute('webkit-playsinline', 'true');
+    video.setAttribute('disablePictureInPicture', 'true');
     video.muted = true;
     video.playsInline = true;
+    video.autoplay = true;
   }
 
   function detectTorchAvailability() {
@@ -231,8 +280,44 @@ export default function App() {
     try {
       return Boolean(track.getCapabilities()?.torch);
     } catch (error) {
-      console.warn('Não foi possível verificar suporte à lanterna.', error);
+      console.warn('Nao foi possivel verificar suporte a lanterna.', error);
       return false;
+    }
+  }
+
+  async function playSuccessTone() {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+
+    if (!AudioContextCtor) {
+      return;
+    }
+
+    try {
+      const runtime = runtimeRef.current;
+
+      if (!runtime.audioContext) {
+        runtime.audioContext = new AudioContextCtor();
+      }
+
+      if (runtime.audioContext.state === 'suspended') {
+        await runtime.audioContext.resume();
+      }
+
+      const oscillator = runtime.audioContext.createOscillator();
+      const gain = runtime.audioContext.createGain();
+      const now = runtime.audioContext.currentTime;
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      oscillator.connect(gain);
+      gain.connect(runtime.audioContext.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.12);
+    } catch (error) {
+      console.warn('Nao foi possivel emitir o tom de confirmacao.', error);
     }
   }
 
@@ -293,15 +378,12 @@ export default function App() {
 
     if (now - runtime.lastFailureNoticeAt > 3500) {
       runtime.lastFailureNoticeAt = now;
-      setStatus('guiding', 'Posicione o código de barras dentro da moldura e aguarde o foco ficar nítido.');
+      setStatus('guiding', 'Posicione o codigo de barras dentro da moldura e aguarde o foco ficar nitido.');
     }
   }
 
   function getScanIntervalMs() {
-    const userAgent = window.navigator.userAgent || '';
-    const isIosLike = /iPhone|iPad|iPod/i.test(userAgent);
-
-    return isIosLike ? 180 : 120;
+    return isMobileDevice() ? 180 : 120;
   }
 
   function scheduleFrameDecode() {
@@ -372,6 +454,11 @@ export default function App() {
       return;
     }
 
+    if (!runtime.readingStatusShown) {
+      runtime.readingStatusShown = true;
+      setStatus('reading');
+    }
+
     try {
       const { result, error } = decodeCurrentFrame(runtime.reader, runtime, video);
 
@@ -420,15 +507,24 @@ export default function App() {
 
     runtime.lastAcceptedCode = normalized;
     runtime.lastAcceptedAt = now;
+
+    console.info('Codigo detectado.', {
+      format: formatName,
+      text: normalized
+    });
+
     hideDiagnostic();
-    setStatus('success', `Código detectado: ${normalized}`);
+    setStatus('success', `Codigo detectado: ${normalized}`);
     await stopScanner({ keepStatus: true });
 
     if (navigator.vibrate) {
       navigator.vibrate(90);
     }
 
+    await playSuccessTone();
+
     patchUi({
+      copyFeedback: '',
       inlineCode: normalized,
       isResultModalOpen: true,
       resultCode: normalized,
@@ -455,7 +551,7 @@ export default function App() {
       showDiagnostic(error, 'ZXing');
       setStatus(
         'reading',
-        'O leitor ainda não conseguiu decodificar o código. Ajuste distância, foco e iluminação; a tentativa continuará até o tempo acabar.'
+        'O leitor ainda nao conseguiu decodificar o codigo. Ajuste distancia, foco e iluminacao; a tentativa vai continuar.'
       );
       runtime.fatalDecodeHits = 0;
       return;
@@ -472,12 +568,14 @@ export default function App() {
         return;
       }
 
-      void stopScanner({ keepStatus: true }).then(() => {
-        setStatus('timeout');
-      }).catch((error) => {
-        console.error('Falha ao encerrar leitura por timeout.', error);
-        setStatus('timeout');
-      });
+      void stopScanner({ keepStatus: true })
+        .then(() => {
+          setStatus('timeout');
+        })
+        .catch((error) => {
+          console.error('Falha ao encerrar leitura por timeout.', error);
+          setStatus('timeout');
+        });
     }, 30000);
   }
 
@@ -489,12 +587,13 @@ export default function App() {
       return;
     }
 
-    patchUi({ isResultModalOpen: false });
+    patchUi({ copyFeedback: '', isResultModalOpen: false });
     hideDiagnostic();
     await stopScanner({ keepStatus: true });
 
     runtime.isStarting = true;
     runtime.lastFailureNoticeAt = 0;
+    runtime.readingStatusShown = false;
     patchUi({ isStarting: true });
     setStatus('requesting');
 
@@ -508,42 +607,51 @@ export default function App() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       runtime.isStarting = false;
       patchUi({ isStarting: false });
-      setStatus('initError', 'Este navegador não oferece suporte a captura de câmera com getUserMedia.');
+      setStatus('unsupported');
       return;
     }
 
     try {
       prepareVideoElement();
       const stream = await requestBestAvailableStream();
-      const hints = createDecoderHints();
       const reader = new MultiFormatReader();
+      const hints = createDecoderHints();
+
       reader.setHints(hints);
-      const video = videoRef.current;
 
       runtime.stream = stream;
       runtime.reader = reader;
       runtime.isScanning = true;
       runtime.isStarting = false;
       runtime.scanActivatedAt = Date.now();
-      runtime.torchAvailable = detectTorchAvailability();
+      runtime.torchAvailable = false;
       runtime.torchOn = false;
 
       patchUi({
         isScanning: true,
         isStarting: false,
         isTorchOn: false,
-        torchAvailable: runtime.torchAvailable
+        torchAvailable: false
       });
-      setStatus('reading');
-      if (video) {
-        video.srcObject = stream;
-        await waitForVideoReadiness(video);
-      }
+
+      setStatus('opening');
+      video.srcObject = stream;
+      await waitForVideoReadiness(video);
+
+      runtime.torchAvailable = detectTorchAvailability();
+      patchUi({ torchAvailable: runtime.torchAvailable });
+
+      console.info('Video pronto para leitura.', {
+        label: String(stream.getVideoTracks?.()[0]?.label || ''),
+        settings: stream.getVideoTracks?.()[0]?.getSettings?.() || {}
+      });
+
+      setStatus('guiding');
       startScanTimeout();
       scheduleFrameDecode();
     } catch (error) {
       console.error('Falha ao iniciar o scanner.', error);
-      showDiagnostic(error, 'Inicialização');
+      showDiagnostic(error, 'Inicializacao');
       runtime.isStarting = false;
       patchUi({ isStarting: false });
       await disposeScannerInternals();
@@ -553,7 +661,7 @@ export default function App() {
   }
 
   async function restartScanner() {
-    patchUi({ isResultModalOpen: false });
+    patchUi({ copyFeedback: '', isResultModalOpen: false });
     await stopScanner({ keepStatus: true });
     await startScanner();
   }
@@ -579,15 +687,35 @@ export default function App() {
         torchAvailable: true
       });
     } catch (error) {
-      console.warn('Não foi possível alternar a lanterna.', error);
+      console.warn('Nao foi possivel alternar a lanterna.', error);
       showDiagnostic(error, 'Lanterna');
-      setStatus('reading', 'Não foi possível controlar a lanterna neste aparelho. A leitura pode continuar sem ela.');
+      setStatus('reading', 'Nao foi possivel controlar a lanterna neste aparelho. A leitura pode continuar sem ela.');
       patchUi({ torchAvailable: true });
     }
   }
 
+  async function handleCopyCode() {
+    try {
+      const copied = await copyText(ui.resultCode || ui.inlineCode);
+
+      patchUi({
+        copyFeedback: copied ? 'Codigo copiado.' : 'Nao foi possivel copiar o codigo automaticamente.'
+      });
+    } catch (error) {
+      console.warn('Falha ao copiar codigo.', error);
+      showDiagnostic(error, 'Copiar codigo');
+      patchUi({ copyFeedback: 'Falha ao copiar o codigo.' });
+    }
+  }
+
   function closeResultModal() {
-    patchUi({ isResultModalOpen: false });
+    patchUi({ copyFeedback: '', isResultModalOpen: false });
+
+    if (ui.inlineCode) {
+      setStatus('success', `Ultimo codigo lido: ${ui.inlineCode}`);
+      return;
+    }
+
     hideDiagnostic();
     setStatus('idle');
   }
@@ -603,7 +731,7 @@ export default function App() {
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('initError', 'Este navegador não oferece suporte a captura de câmera com getUserMedia.');
+      setStatus('unsupported');
       return () => {
         runtimeRef.current.destroyed = true;
       };
@@ -655,14 +783,14 @@ export default function App() {
   return (
     <main className="app-shell">
       <section className="hero-card">
-        <h1>Leitor de Código de Barras</h1>
+        <h1>Leitor de Codigo de Barras</h1>
 
         <div className="status-panel" aria-live="polite">
           {statusView.pill ? <span className="status-pill">{statusView.pill}</span> : null}
           {statusView.text ? <p className="status-text">{statusView.text}</p> : null}
           {ui.diagnostic ? (
             <div className="diagnostic-panel" aria-live="polite">
-              <p className="diagnostic-title">Diagnóstico do leitor</p>
+              <p className="diagnostic-title">Diagnostico do leitor</p>
               <p className="diagnostic-line"><strong>Nome:</strong> {ui.diagnostic.name}</p>
               <p className="diagnostic-line"><strong>Mensagem:</strong> {ui.diagnostic.message}</p>
             </div>
@@ -671,7 +799,14 @@ export default function App() {
 
         <div className="camera-card">
           <div className="video-stage">
-            <video ref={videoRef} className="camera-preview" muted playsInline />
+            <video
+              ref={videoRef}
+              autoPlay
+              className="camera-preview"
+              disablePictureInPicture
+              muted
+              playsInline
+            />
             <div className="scan-guide" aria-hidden="true">
               <div className="scan-frame" />
               <div className="scan-line" />
@@ -684,35 +819,53 @@ export default function App() {
             Iniciar leitura
           </button>
           <button className="button button-secondary" type="button" onClick={() => void stopScanner()} disabled={stopDisabled}>
-            Parar câmera
+            Parar camera
           </button>
           <button className="button button-secondary" type="button" onClick={() => void toggleTorch()} disabled={torchDisabled}>
-            {ui.isTorchOn ? 'Desligar lanterna' : 'Ligar a lanterna'}
+            {ui.isTorchOn ? 'Desligar lanterna' : 'Ligar lanterna'}
           </button>
         </div>
       </section>
 
       <section className="result-dock" aria-live="polite">
-        <label className="result-inline-label" htmlFor="result-inline-code">Conteúdo lido</label>
+        <div className="result-inline-header">
+          <label className="result-inline-label" htmlFor="result-inline-code">Conteudo lido</label>
+          <button
+            className="button button-inline"
+            type="button"
+            onClick={() => void handleCopyCode()}
+            disabled={!ui.inlineCode}
+          >
+            Copiar codigo
+          </button>
+        </div>
         <input className="result-inline-input" id="result-inline-code" type="text" value={ui.inlineCode} readOnly />
+        <p className="result-inline-meta">
+          {ui.resultFormat ? `Formato identificado: ${ui.resultFormat}` : 'Aguardando uma leitura valida.'}
+        </p>
+        {ui.copyFeedback ? <p className="result-inline-feedback">{ui.copyFeedback}</p> : null}
       </section>
 
       {ui.isResultModalOpen ? (
         <div className="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
           <div className="result-card">
-            <p className="result-label">Código lido</p>
-            <h2 id="result-title">Código lido</h2>
+            <p className="result-label">Codigo lido</p>
+            <h2 id="result-title">Leitura concluida</h2>
             <p className="result-copy">Valor detectado:</p>
             <p className="result-code">{ui.resultCode || '-'}</p>
             <p className="result-copy">
-              {ui.resultFormat ? `Formato detectado: ${ui.resultFormat}` : 'Leitura concluída com sucesso.'}
+              {ui.resultFormat ? `Formato detectado: ${ui.resultFormat}` : 'Leitura concluida com sucesso.'}
             </p>
+            {ui.copyFeedback ? <p className="result-inline-feedback modal-feedback">{ui.copyFeedback}</p> : null}
             <div className="actions actions-modal">
-              <button className="button button-secondary" type="button" onClick={closeResultModal}>
-                Fechar
+              <button className="button button-secondary" type="button" onClick={() => void handleCopyCode()}>
+                Copiar codigo
               </button>
               <button className="button button-primary" type="button" onClick={() => void restartScanner()}>
                 Ler novamente
+              </button>
+              <button className="button button-secondary" type="button" onClick={closeResultModal}>
+                Fechar
               </button>
             </div>
           </div>

@@ -328,6 +328,14 @@ h1 {
   font-weight: 700;
 }
 
+.result-inline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
 .result-dock {
   margin-top: 18px;
   padding: 14px 16px 16px;
@@ -349,6 +357,27 @@ h1 {
   font-size: clamp(1rem, 4.8vw, 1.25rem);
   color: var(--text-main);
   outline: none;
+}
+
+.button-inline {
+  padding: 10px 14px;
+  background: rgba(74, 222, 128, 0.12);
+  color: #dcfce7;
+  border: 1px solid rgba(74, 222, 128, 0.22);
+}
+
+.result-inline-meta,
+.result-inline-feedback {
+  margin: 10px 0 0;
+  line-height: 1.5;
+}
+
+.result-inline-meta {
+  color: var(--text-muted);
+}
+
+.result-inline-feedback {
+  color: #bbf7d0;
 }
 
 .result-modal {
@@ -398,6 +427,11 @@ h1 {
 
 .actions-modal {
   margin-top: 22px;
+  flex-wrap: wrap;
+}
+
+.modal-feedback {
+  margin-top: 14px;
 }
 
 .hidden {
@@ -409,12 +443,21 @@ body.modal-open {
 }
 
 @media (max-width: 600px) {
+  .actions-scanner {
+    grid-template-columns: 1fr;
+  }
+
   .actions-modal {
     flex-direction: column;
   }
 
   .hero-card {
     padding: 18px;
+  }
+
+  .result-inline-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .video-stage {

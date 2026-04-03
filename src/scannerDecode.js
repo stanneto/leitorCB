@@ -51,6 +51,20 @@ export function getDecodeRegions(video) {
     sh: Math.round(frameHeight * 0.24)
   };
 
+  const linearUpper = {
+    sx: Math.round(frameWidth * 0.08),
+    sy: Math.round(frameHeight * 0.27),
+    sw: Math.round(frameWidth * 0.84),
+    sh: Math.round(frameHeight * 0.16)
+  };
+
+  const linearLower = {
+    sx: Math.round(frameWidth * 0.08),
+    sy: Math.round(frameHeight * 0.49),
+    sw: Math.round(frameWidth * 0.84),
+    sh: Math.round(frameHeight * 0.16)
+  };
+
   const linearFull = {
     sx: Math.round(frameWidth * 0.04),
     sy: Math.round(frameHeight * 0.24),
@@ -73,15 +87,20 @@ export function getDecodeRegions(video) {
     sh: frameHeight
   };
 
-  return [linearTight, linearWide, linearMedium, linearFull, centerSquare, fullFrame];
+  return [linearTight, linearWide, linearUpper, linearLower, linearMedium, linearFull, centerSquare, fullFrame];
 }
 
 export function drawDecodeRegion(runtime, video, region) {
   const isLinearRegion = region.sw > region.sh;
-  const targetWidth = isLinearRegion ? Math.max(960, region.sw) : Math.max(720, region.sw);
-  const targetHeight = isLinearRegion ? Math.max(260, region.sh) : Math.max(720, region.sh);
+  const targetWidth = isLinearRegion
+    ? Math.min(1600, Math.max(960, Math.round(region.sw * 2)))
+    : Math.min(1200, Math.max(720, Math.round(region.sw * 1.5)));
+  const targetHeight = isLinearRegion
+    ? Math.min(420, Math.max(220, Math.round(region.sh * 2)))
+    : Math.min(1200, Math.max(720, Math.round(region.sh * 1.5)));
   const canvas = ensureCaptureCanvas(runtime, targetWidth, targetHeight);
 
+  runtime.captureContext.imageSmoothingEnabled = true;
   runtime.captureContext.drawImage(
     video,
     region.sx,

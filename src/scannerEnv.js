@@ -6,6 +6,12 @@ export function isIosDevice() {
   return /iPhone|iPad|iPod/i.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
 }
 
+export function isMobileDevice() {
+  const userAgent = window.navigator.userAgent || '';
+
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) || isIosDevice();
+}
+
 export function stopTracks(stream) {
   if (!stream) {
     return;
@@ -20,19 +26,37 @@ function scoreCameraLabel(label) {
   const normalized = String(label || '').toLowerCase();
   let score = 0;
 
-  if (normalized.includes('back') || normalized.includes('rear') || normalized.includes('traseira') || normalized.includes('environment')) {
+  if (
+    normalized.includes('back') ||
+    normalized.includes('rear') ||
+    normalized.includes('traseira') ||
+    normalized.includes('environment')
+  ) {
     score += 8;
   }
 
-  if (normalized.includes('wide')) {
+  if (normalized.includes('wide') || normalized.includes('ultra')) {
     score += 2;
   }
 
-  if (normalized.includes('front') || normalized.includes('frontal') || normalized.includes('user') || normalized.includes('face')) {
+  if (
+    normalized.includes('front') ||
+    normalized.includes('frontal') ||
+    normalized.includes('user') ||
+    normalized.includes('face')
+  ) {
     score -= 10;
   }
 
   return score;
+}
+
+function isFrontCameraLabel(label) {
+  return scoreCameraLabel(label) < 0;
+}
+
+function isRearCameraLabel(label) {
+  return scoreCameraLabel(label) > 0;
 }
 
 function pickBestCamera(devices) {
@@ -62,10 +86,18 @@ function getFallbackVideoConstraints() {
   return {
     audio: false,
     video: {
+      facingMode: { ideal: 'environment' },
       frameRate: { ideal: 24, max: 30 },
       width: { ideal: 1280 },
       height: { ideal: 720 }
     }
+  };
+}
+
+function getLastResortVideoConstraints() {
+  return {
+    audio: false,
+    video: true
   };
 }
 
@@ -78,7 +110,7 @@ async function listVideoDevicesSafe() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     return devices.filter((device) => device.kind === 'videoinput');
   } catch (error) {
-    console.warn('Não foi possível listar as câmeras.', error);
+    console.warn('Nao foi possivel listar as cameras.', error);
     return [];
   }
 }
@@ -114,56 +146,132 @@ async function applyTrackTuning(track) {
       await track.applyConstraints({ advanced });
     }
   } catch (error) {
-    console.warn('Ajustes extras de foco e zoom não puderam ser aplicados.', error);
+    console.warn('Ajustes extras de foco e zoom nao puderam ser aplicados.', error);
   }
 }
 
-export async function requestBestAvailableStream() {
-  let stream;
+function getTrackSettings(track) {
+  if (!track || !track.getSettings) {
+    return {};
+  }
 
   try {
-    stream = await navigator.mediaDevices.getUserMedia(getPrimaryVideoConstraints());
-  } catch (primaryError) {
-    const primaryMessage = String(primaryError?.message || primaryError);
+    return track.getSettings() || {};
+  } catch (error) {
+    return {};
+  }
+}
 
-    if (
-      primaryMessage.includes('OverconstrainedError') ||
-      primaryMessage.includes('NotFoundError') ||
-      primaryMessage.includes('ConstraintNotSatisfiedError')
-    ) {
-      stream = await navigator.mediaDevices.getUserMedia(getFallbackVideoConstraints());
-    } else {
-      throw primaryError;
+function getTrackDeviceId(track) {
+  return String(getTrackSettings(track).deviceId || '');
+}
+
+function getTrackFacingMode(track) {
+  return String(getTrackSettings(track).facingMode || '').toLowerCase();
+}
+
+function isTrackLikelyFront(track) {
+  const facingMode = getTrackFacingMode(track);
+  const label = String(track?.label || '');
+
+  return facingMode === 'user' || isFrontCameraLabel(label);
+}
+
+function isTrackLikelyRear(track) {
+  const facingMode = getTrackFacingMode(track);
+  const label = String(track?.label || '');
+
+  return facingMode === 'environment' || isRearCameraLabel(label);
+}
+
+async function requestStreamWithConstraints(constraints) {
+  return navigator.mediaDevices.getUserMedia(constraints);
+}
+
+async function requestSpecificDeviceStream(deviceId) {
+  return requestStreamWithConstraints({
+    audio: false,
+    video: {
+      deviceId: { exact: deviceId },
+      frameRate: { ideal: 24, max: 30 },
+      width: { ideal: isIosDevice() ? 1920 : 1280 },
+      height: { ideal: isIosDevice() ? 1080 : 720 }
+    }
+  });
+}
+
+async function requestInitialStream() {
+  const attempts = [
+    getPrimaryVideoConstraints(),
+    getFallbackVideoConstraints(),
+    getLastResortVideoConstraints()
+  ];
+  let lastError = null;
+
+  for (const constraints of attempts) {
+    try {
+      return await requestStreamWithConstraints(constraints);
+    } catch (error) {
+      lastError = error;
+      const name = String(error?.name || '');
+      const message = String(error?.message || '');
+      const retryable =
+        name === 'OverconstrainedError' ||
+        name === 'ConstraintNotSatisfiedError' ||
+        name === 'NotFoundError' ||
+        message.includes('OverconstrainedError') ||
+        message.includes('ConstraintNotSatisfiedError') ||
+        message.includes('NotFoundError');
+
+      if (!retryable) {
+        throw error;
+      }
     }
   }
 
+  throw lastError || new Error('CAMERA_STREAM_NOT_AVAILABLE');
+}
+
+export async function requestBestAvailableStream() {
+  let stream = await requestInitialStream();
   const devices = await listVideoDevicesSafe();
   const preferredDevice = pickBestCamera(devices);
-  const videoTrack = stream.getVideoTracks()[0];
-  const settings = videoTrack?.getSettings ? videoTrack.getSettings() : {};
-  const currentLabel = videoTrack?.label || '';
-  const usingFrontCamera = String(settings.facingMode || '').toLowerCase() === 'user' || scoreCameraLabel(currentLabel) < 0;
+  let finalTrack = stream.getVideoTracks()[0];
+  const currentDeviceId = getTrackDeviceId(finalTrack);
+  const shouldForcePreferredRearCamera =
+    Boolean(preferredDevice) &&
+    (
+      currentDeviceId !== preferredDevice.deviceId ||
+      isTrackLikelyFront(finalTrack) ||
+      !isTrackLikelyRear(finalTrack)
+    );
 
-  if (preferredDevice && usingFrontCamera) {
+  if (shouldForcePreferredRearCamera) {
     try {
-      const retryStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          deviceId: { exact: preferredDevice.deviceId },
-          frameRate: { ideal: 24, max: 30 },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
-
+      const retryStream = await requestSpecificDeviceStream(preferredDevice.deviceId);
       stopTracks(stream);
       stream = retryStream;
-    } catch (retryError) {
-      console.warn('Não foi possível trocar para a câmera traseira preferida.', retryError);
+      finalTrack = stream.getVideoTracks()[0];
+    } catch (error) {
+      console.warn('Nao foi possivel trocar para a camera traseira preferida.', error);
     }
   }
 
-  await applyTrackTuning(stream.getVideoTracks()[0]);
+  if (isMobileDevice() && isTrackLikelyFront(finalTrack)) {
+    stopTracks(stream);
+    const rearCameraError = new Error('A camera traseira nao ficou disponivel neste navegador ou aparelho.');
+    rearCameraError.name = 'RearCameraNotAvailableError';
+    throw rearCameraError;
+  }
+
+  console.info('Camera selecionada para leitura.', {
+    deviceId: getTrackDeviceId(finalTrack),
+    facingMode: getTrackFacingMode(finalTrack),
+    label: String(finalTrack?.label || ''),
+    mobile: isMobileDevice()
+  });
+
+  await applyTrackTuning(finalTrack);
 
   return stream;
 }
@@ -180,6 +288,13 @@ export function describeCameraError(error) {
     return { type: 'noCamera' };
   }
 
+  if (name === 'RearCameraNotAvailableError') {
+    return {
+      type: 'rearCamera',
+      text: 'Nao foi possivel confirmar a camera traseira. Em celular, abra o app por HTTPS e permita acesso a camera traseira.'
+    };
+  }
+
   if (name === 'NotReadableError' || name === 'TrackStartError' || message.includes('Could not start video source')) {
     return { type: 'unavailable' };
   }
@@ -187,7 +302,7 @@ export function describeCameraError(error) {
   if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
     return {
       type: 'unavailable',
-      text: 'A configuração da câmera não foi aceita pelo aparelho. Tentamos um fallback, mas a câmera não iniciou.'
+      text: 'A configuracao da camera nao foi aceita pelo aparelho. Tentamos um fallback, mas o video nao iniciou.'
     };
   }
 

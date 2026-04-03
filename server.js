@@ -72,7 +72,8 @@ function sendFile(response, filePath, cacheControl) {
 
   response.writeHead(200, {
     'Cache-Control': cacheControl,
-    'Content-Type': getContentType(filePath)
+    'Content-Type': getContentType(filePath),
+    'Permissions-Policy': 'camera=(self)'
   });
 
   stream.on('error', () => {
@@ -86,7 +87,8 @@ function sendFile(response, filePath, cacheControl) {
 function sendJson(response, statusCode, body) {
   response.writeHead(statusCode, {
     'Cache-Control': 'no-cache',
-    'Content-Type': 'application/json; charset=utf-8'
+    'Content-Type': 'application/json; charset=utf-8',
+    'Permissions-Policy': 'camera=(self)'
   });
   response.end(JSON.stringify(body, null, 2));
 }
@@ -124,7 +126,10 @@ function createRequestListener(httpsEnabled) {
     const publicFile = safeResolvePublicFile(pathname);
 
     if (!publicFile || !fileExists(publicFile)) {
-      response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.writeHead(404, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Permissions-Policy': 'camera=(self)'
+      });
       response.end('Arquivo nao encontrado.');
       return;
     }
