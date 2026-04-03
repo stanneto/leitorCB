@@ -124,6 +124,18 @@ function getStatusView(statusType, overrideText) {
   };
 }
 
+function getReadSourceLabel(formatName) {
+  if (formatName === 'CODE-128') {
+    return 'Lido por: Codigo de barras';
+  }
+
+  if (formatName === 'OCR NUMERICO') {
+    return 'Lido por: OCR';
+  }
+
+  return 'Aguardando uma leitura valida.';
+}
+
 async function copyText(text) {
   const normalized = String(text || '').trim();
 
@@ -875,7 +887,7 @@ export default function App() {
         </div>
         <input className="result-inline-input" id="result-inline-code" type="text" value={ui.inlineCode} readOnly />
         <p className="result-inline-meta">
-          {ui.resultFormat ? `Formato identificado: ${ui.resultFormat}` : 'Aguardando uma leitura valida.'}
+          {getReadSourceLabel(ui.resultFormat)}
         </p>
         {ui.copyFeedback ? <p className="result-inline-feedback">{ui.copyFeedback}</p> : null}
       </section>
@@ -888,7 +900,7 @@ export default function App() {
             <p className="result-copy">Valor detectado:</p>
             <p className="result-code">{ui.resultCode || '-'}</p>
             <p className="result-copy">
-              {ui.resultFormat ? `Formato detectado: ${ui.resultFormat}` : 'Leitura concluida com sucesso.'}
+              {ui.resultFormat ? getReadSourceLabel(ui.resultFormat) : 'Leitura concluida com sucesso.'}
             </p>
             {ui.copyFeedback ? <p className="result-inline-feedback modal-feedback">{ui.copyFeedback}</p> : null}
             <div className="actions actions-modal">
