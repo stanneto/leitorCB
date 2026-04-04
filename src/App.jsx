@@ -894,11 +894,13 @@ export default function App() {
               <button className="button button-secondary" type="button" onClick={() => void handleCopyCode()}>
                 Copiar código
               </button>
-              <button className="button button-primary" type="button" onClick={() => void restartScanner()}>
-                Ler novamente
-              </button>
-              <button className="button button-secondary" type="button" onClick={closeResultModal}>
-                Fechar
+              <button
+                aria-label="Ler novamente"
+                className="button button-restart-icon"
+                type="button"
+                onClick={() => void restartScanner()}
+              >
+                <img alt="" className="restart-icon" src="/restart-button.svg" />
               </button>
             </div>
           </div>

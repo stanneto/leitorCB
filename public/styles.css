@@ -366,6 +366,24 @@ h1 {
   flex: 0 0 auto;
 }
 
+.button-restart-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  padding: 8px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.restart-icon {
+  width: 56px;
+  height: 56px;
+  display: block;
+}
+
 .result-modal {
   position: fixed;
   inset: 0;
