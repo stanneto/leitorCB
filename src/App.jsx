@@ -101,14 +101,11 @@ function createInitialUiState() {
   return {
     copyFeedback: '',
     diagnostic: null,
-    inlineCode: '',
     isResultModalOpen: false,
     isScanning: false,
     isStarting: false,
     isStopping: false,
     isTorchOn: false,
-    lastReadCode: '',
-    lastReadFormat: '',
     resultCode: '',
     resultFormat: '',
     statusOverrideText: null,
@@ -560,10 +557,7 @@ export default function App() {
 
     patchUi({
       copyFeedback: '',
-      inlineCode: normalized,
       isResultModalOpen: true,
-      lastReadCode: normalized,
-      lastReadFormat: formatName,
       resultCode: normalized,
       resultFormat: formatName
     });
@@ -745,7 +739,7 @@ export default function App() {
 
   async function handleCopyCode() {
     try {
-      const copied = await copyText(ui.lastReadCode || ui.inlineCode || ui.resultCode);
+      const copied = await copyText(ui.resultCode);
 
       patchUi({
         copyFeedback: copied ? 'Código copiado.' : 'Não foi possível copiar o código automaticamente.'
@@ -760,7 +754,7 @@ export default function App() {
   function closeResultModal() {
     patchUi({ copyFeedback: '', isResultModalOpen: false });
 
-    if (ui.lastReadCode) {
+    if (ui.resultCode) {
       setStatus('success');
       return;
     }

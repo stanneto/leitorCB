@@ -14,14 +14,15 @@ Este aplicativo usa **ZXing** como mecanismo principal de leitura.
 
 - Servidor local em Node.js com HTTPS automatico quando houver certificado local
 - Leitura em tempo real com ZXing, sem depender de `BarcodeDetector` nativo
+- OCR numerico de apoio, limitado a 8 digitos, para etiquetas patrimoniais
 - Front-end em React montado em um único `root`
 - Interface web mobile-first com guia visual central
 - Solicitacao correta de permissao de camera somente apos tocar em `Iniciar leitura`
 - Preferencia pela camera traseira com fallback seguro para iPhone e Android
 - Ajustes extras para Safari/iPhone: video inline, foco continuo quando disponivel e resolucao adequada
-- Suporte a `EAN-13`, `EAN-8`, `CODE-128`, `UPC-A`, `UPC-E` e `QR Code`
+- Leitura focada em `CODE-128` numerico e OCR da numeracao visivel
 - Timeout de leitura com mensagem visivel ao usuario
-- Modal final com `Codigo lido`, `Fechar` e `Ler novamente`
+- Modal final com `Codigo lido`, `Copiar codigo`, `Fechar` e `Ler novamente`
 - Limpeza correta do stream ao parar, trocar de aba, sair da pagina ou reiniciar a leitura
 
 ## Estrutura
@@ -145,6 +146,7 @@ O projeto usa:
 - `getUserMedia`
 - preferencia por `facingMode: environment`
 - ZXing como mecanismo principal de decodificacao em tempo real
+- Tesseract.js como fallback de OCR numerico para 8 digitos
 - recortes horizontais progressivos para priorizar leitura de codigos 1D como `Code 128`
 - video inline para evitar comportamento inconsistente do Safari
 - tentativa de foco continuo e ajuste moderado de zoom quando o navegador expoe esses controles
@@ -158,7 +160,7 @@ O projeto usa:
 - ausencia de camera
 - contexto inseguro
 - falha ao iniciar o video
-- falha da biblioteca de leitura
+- falha do ZXing ou do OCR
 - timeout de leitura
 - limpeza do stream em reinicio, troca de aba e saida da pagina
 

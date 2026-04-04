@@ -57,14 +57,6 @@ body {
   align-items: center;
 }
 
-.eyebrow {
-  margin: 0 0 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.75rem;
-  color: #9dd8b1;
-}
-
 h1 {
   margin: 0;
   text-align: center;
@@ -72,23 +64,13 @@ h1 {
   line-height: 1.05;
 }
 
-.lead,
 .status-text,
-.overlay-copy,
-.result-copy,
-.tips {
+.result-copy {
   color: var(--text-muted);
-}
-
-.lead {
-  margin: 14px 0 0;
-  font-size: 1rem;
-  line-height: 1.55;
 }
 
 .status-panel,
 .camera-card,
-.tips,
 .result-card {
   margin-top: 18px;
 }
@@ -243,28 +225,6 @@ h1 {
   100% { transform: translate(-50%, -52px); }
 }
 
-.video-overlay {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 16px;
-  background: linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.88));
-  pointer-events: none;
-}
-
-.overlay-title {
-  margin: 0;
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.overlay-copy {
-  margin: 8px 0 0;
-  line-height: 1.4;
-  font-size: 0.94rem;
-}
-
 .actions {
   display: flex;
   gap: 12px;
@@ -408,12 +368,6 @@ h1 {
   flex: 0 0 auto;
 }
 
-.tips {
-  margin-bottom: 0;
-  padding-left: 18px;
-  line-height: 1.6;
-}
-
 .result-modal {
   position: fixed;
   inset: 0;
@@ -472,10 +426,6 @@ h1 {
 
 .modal-feedback {
   margin-top: 14px;
-}
-
-.hidden {
-  display: none;
 }
 
 body.modal-open {
