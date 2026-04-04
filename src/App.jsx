@@ -881,7 +881,6 @@ export default function App() {
             disabled={torchDisabled}
           >
             <img alt="" className="flashlight-icon" src="/flashlight-toggle.svg" />
-            <span>{ui.isTorchOn ? 'Desligar lanterna' : 'Ligar lanterna'}</span>
           </button>
         </div>
       </section>
