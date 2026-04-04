@@ -373,6 +373,8 @@ h1 {
   width: 72px;
   height: 72px;
   padding: 8px;
+  margin-left: auto;
+  margin-right: auto;
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -438,6 +440,7 @@ h1 {
 .actions-modal {
   margin-top: 22px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .modal-feedback {

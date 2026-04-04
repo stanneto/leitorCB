@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-hidden="true">
   <defs>
-    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f4f4f4"/>
-      <stop offset="48%" stop-color="#bdbdbd"/>
-      <stop offset="52%" stop-color="#4d4d4d"/>
-      <stop offset="100%" stop-color="#efefef"/>
+    <linearGradient id="outerRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f6f6f6"/>
+      <stop offset="50%" stop-color="#bdbdbd"/>
+      <stop offset="52%" stop-color="#4e4e4e"/>
+      <stop offset="100%" stop-color="#ededed"/>
     </linearGradient>
-    <linearGradient id="green" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#2fd329"/>
-      <stop offset="100%" stop-color="#008c00"/>
+    <linearGradient id="greenFace" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2dd229"/>
+      <stop offset="100%" stop-color="#009800"/>
     </linearGradient>
   </defs>
-  <circle cx="48" cy="48" r="46" fill="url(#ring)"/>
-  <circle cx="48" cy="48" r="34" fill="url(#green)" stroke="#0b5500" stroke-width="2"/>
-  <path d="M37 28 22 40l15 12V44h11c10 0 16 6 16 15 0 7-4 13-10 16l4 6c8-4 14-13 14-22 0-13-9-23-24-23H37v-8Z" fill="#ffffff"/>
+  <circle cx="48" cy="48" r="46" fill="url(#outerRing)"/>
+  <circle cx="48" cy="48" r="34" fill="url(#greenFace)" stroke="#0f5400" stroke-width="2"/>
+  <path d="M55 27 28 46l27 19v-11c10-1 15 4 15 13 0 5-2 10-5 13l8 4c4-5 6-11 6-18 0-14-9-23-24-22V27Z" fill="#ffffff"/>
 </svg>
