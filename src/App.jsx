@@ -26,66 +26,66 @@ const FORMAT_LABELS = {
 const STATUS_CATALOG = {
   idle: {
     pill: 'Pronto para ler',
-    text: 'Toque em Iniciar leitura para abrir a camera.'
+    text: 'Toque em Iniciar leitura para abrir a câmera.'
   },
   requesting: {
-    pill: 'Aguardando permissao',
-    text: 'Confirme a permissao da camera no navegador.'
+    pill: 'Aguardando permissão',
+    text: 'Confirme a permissão da câmera no navegador.'
   },
   opening: {
-    pill: 'Abrindo camera',
-    text: 'Estamos preparando a camera e o video para iniciar a leitura.'
+    pill: 'Abrindo câmera',
+    text: 'Estamos preparando a câmera e o vídeo para iniciar a leitura.'
   },
   guiding: {
-    pill: 'Posicione o codigo',
-    text: 'Centralize o codigo Code 128 na moldura e espere a imagem ficar nitida.'
+    pill: 'Posicione o código',
+    text: 'Centralize o código Code 128 na moldura e espere a imagem ficar nítida.'
   },
   reading: {
     pill: 'Lendo Code 128',
-    text: 'Mantenha o aparelho firme enquanto o ZXing tenta decodificar o codigo Code 128.'
+    text: 'Mantenha o aparelho firme enquanto o ZXing tenta decodificar o código Code 128.'
   },
   ocr: {
-    pill: 'Tentando OCR da numeracao',
-    text: 'O leitor esta tentando reconhecer a numeracao visivel da etiqueta, sempre com 8 digitos.'
+    pill: 'Tentando OCR da numeração',
+    text: 'O leitor está tentando reconhecer a numeração visível da etiqueta, sempre com 8 dígitos.'
   },
   success: {
-    pill: 'Codigo detectado com sucesso',
-    text: 'Leitura concluida.'
+    pill: 'Código detectado com sucesso',
+    text: 'Leitura concluída.'
   },
   timeout: {
-    pill: 'Nenhum codigo detectado',
-    text: 'Nao foi possivel detectar um codigo dentro do tempo esperado. Ajuste distancia, foco e iluminacao.'
+    pill: 'Nenhum código detectado',
+    text: 'Não foi possível detectar um código dentro do tempo esperado. Ajuste distância, foco e iluminação.'
   },
   insecure: {
-    pill: 'HTTPS necessario',
-    text: 'A camera em iPhone e em muitos navegadores moveis exige HTTPS ou localhost.'
+    pill: 'HTTPS necessário',
+    text: 'A câmera em iPhone e em muitos navegadores móveis exige HTTPS ou localhost.'
   },
   denied: {
-    pill: 'Permissao negada',
-    text: 'Libere o acesso a camera nas configuracoes do navegador e tente novamente.'
+    pill: 'Permissão negada',
+    text: 'Libere o acesso à câmera nas configurações do navegador e tente novamente.'
   },
   noCamera: {
-    pill: 'Nenhuma camera encontrada',
-    text: 'Nao encontramos uma camera disponivel neste aparelho.'
+    pill: 'Nenhuma câmera encontrada',
+    text: 'Não encontramos uma câmera disponível neste aparelho.'
   },
   rearCamera: {
-    pill: 'Camera traseira nao disponivel',
-    text: 'Nao foi possivel confirmar a camera traseira no celular. Abra o app por HTTPS e tente novamente.'
+    pill: 'Câmera traseira não disponível',
+    text: 'Não foi possível confirmar a câmera traseira no celular. Abra o app por HTTPS e tente novamente.'
   },
   unavailable: {
-    pill: 'Camera indisponivel',
-    text: 'Feche outros apps que possam estar usando a camera e tente novamente.'
+    pill: 'Câmera indisponível',
+    text: 'Feche outros apps que possam estar usando a câmera e tente novamente.'
   },
   unsupported: {
-    pill: 'Navegador nao suportado',
-    text: 'Este navegador nao oferece getUserMedia ou recursos minimos para o leitor.'
+    pill: 'Navegador não suportado',
+    text: 'Este navegador não oferece getUserMedia ou recursos mínimos para o leitor.'
   },
   initError: {
-    pill: 'Falha ao iniciar video',
-    text: 'O navegador nao conseguiu iniciar o video da camera com seguranca.'
+    pill: 'Falha ao iniciar vídeo',
+    text: 'O navegador não conseguiu iniciar o vídeo da câmera com segurança.'
   },
   stopped: {
-    pill: 'Camera parada',
+    pill: 'Câmera parada',
     text: 'Toque em Iniciar leitura para tentar novamente.'
   }
 };
@@ -128,14 +128,14 @@ function getStatusView(statusType, overrideText) {
 
 function getReadSourceLabel(formatName) {
   if (formatName === 'CODE-128') {
-    return 'Lido por: Codigo de barras';
+    return 'Lido por: Código de barras';
   }
 
   if (formatName === 'OCR NUMERICO') {
     return 'Lido por: OCR';
   }
 
-  return 'Aguardando uma leitura valida.';
+  return 'Aguardando uma leitura válida.';
 }
 
 async function copyText(text) {
@@ -289,7 +289,7 @@ export default function App() {
     try {
       return Boolean(track.getCapabilities()?.torch);
     } catch (error) {
-      console.warn('Nao foi possivel verificar suporte a lanterna.', error);
+      console.warn('Não foi possível verificar suporte à lanterna.', error);
       return false;
     }
   }
@@ -326,7 +326,7 @@ export default function App() {
       oscillator.start(now);
       oscillator.stop(now + 0.12);
     } catch (error) {
-      console.warn('Nao foi possivel emitir o tom de confirmacao.', error);
+      console.warn('Não foi possível emitir o tom de confirmação.', error);
     }
   }
 
@@ -388,7 +388,7 @@ export default function App() {
 
     if (now - runtime.lastFailureNoticeAt > 3500) {
       runtime.lastFailureNoticeAt = now;
-      setStatus('guiding', 'Posicione o codigo de barras dentro da moldura e aguarde o foco ficar nitido.');
+      setStatus('guiding', 'Posicione o código de barras dentro da moldura e aguarde o foco ficar nítido.');
     }
   }
 
@@ -522,7 +522,7 @@ export default function App() {
     } catch (error) {
       console.warn('Falha na tentativa de OCR.', error);
       showDiagnostic(error, 'OCR');
-      setStatus('ocr', 'O OCR nao conseguiu reconhecer uma numeracao de 8 digitos nesta tentativa.');
+      setStatus('ocr', 'O OCR não conseguiu reconhecer uma numeração de 8 dígitos nesta tentativa.');
     }
   }
 
@@ -599,7 +599,7 @@ export default function App() {
       showDiagnostic(error, 'ZXing');
       setStatus(
         'reading',
-        'O leitor ainda nao conseguiu decodificar o Code 128. Ajuste distancia, foco e iluminacao; a tentativa vai continuar.'
+        'O leitor ainda não conseguiu decodificar o Code 128. Ajuste distância, foco e iluminação; a tentativa vai continuar.'
       );
       runtime.fatalDecodeHits = 0;
       return;
@@ -700,7 +700,7 @@ export default function App() {
       scheduleFrameDecode();
     } catch (error) {
       console.error('Falha ao iniciar o scanner.', error);
-      showDiagnostic(error, 'Inicializacao');
+      showDiagnostic(error, 'Inicialização');
       runtime.isStarting = false;
       patchUi({ isStarting: false });
       await disposeScannerInternals();
@@ -736,9 +736,9 @@ export default function App() {
         torchAvailable: true
       });
     } catch (error) {
-      console.warn('Nao foi possivel alternar a lanterna.', error);
+      console.warn('Não foi possível alternar a lanterna.', error);
       showDiagnostic(error, 'Lanterna');
-      setStatus('reading', 'Nao foi possivel controlar a lanterna neste aparelho. A leitura pode continuar sem ela.');
+      setStatus('reading', 'Não foi possível controlar a lanterna neste aparelho. A leitura pode continuar sem ela.');
       patchUi({ torchAvailable: true });
     }
   }
@@ -748,12 +748,12 @@ export default function App() {
       const copied = await copyText(ui.lastReadCode || ui.inlineCode || ui.resultCode);
 
       patchUi({
-        copyFeedback: copied ? 'Codigo copiado.' : 'Nao foi possivel copiar o codigo automaticamente.'
+        copyFeedback: copied ? 'Código copiado.' : 'Não foi possível copiar o código automaticamente.'
       });
     } catch (error) {
-      console.warn('Falha ao copiar codigo.', error);
-      showDiagnostic(error, 'Copiar codigo');
-      patchUi({ copyFeedback: 'Falha ao copiar o codigo.' });
+      console.warn('Falha ao copiar código.', error);
+      showDiagnostic(error, 'Copiar código');
+      patchUi({ copyFeedback: 'Falha ao copiar o código.' });
     }
   }
 
@@ -833,14 +833,14 @@ export default function App() {
   return (
     <main className="app-shell">
       <section className="hero-card">
-        <h1>Leitor de Codigo de Barras</h1>
+        <h1>Leitor de Código de Barras</h1>
 
         <div className="status-panel" aria-live="polite">
           {statusView.pill ? <span className="status-pill">{statusView.pill}</span> : null}
           {statusView.text ? <p className="status-text">{statusView.text}</p> : null}
           {ui.diagnostic ? (
             <div className="diagnostic-panel" aria-live="polite">
-              <p className="diagnostic-title">Diagnostico do leitor</p>
+              <p className="diagnostic-title">Diagnóstico do leitor</p>
               <p className="diagnostic-line"><strong>Nome:</strong> {ui.diagnostic.name}</p>
               <p className="diagnostic-line"><strong>Mensagem:</strong> {ui.diagnostic.message}</p>
             </div>
@@ -873,8 +873,15 @@ export default function App() {
             <span className="toggle-button-knob" aria-hidden="true" />
             <span className="toggle-button-label">OFF</span>
           </button>
-          <button className="button button-secondary" type="button" onClick={() => void toggleTorch()} disabled={torchDisabled}>
-            {ui.isTorchOn ? 'Desligar lanterna' : 'Ligar lanterna'}
+          <button
+            aria-label={ui.isTorchOn ? 'Desligar lanterna' : 'Ligar lanterna'}
+            className="button button-secondary button-flashlight"
+            type="button"
+            onClick={() => void toggleTorch()}
+            disabled={torchDisabled}
+          >
+            <img alt="" className="flashlight-icon" src="/flashlight-toggle.svg" />
+            <span>{ui.isTorchOn ? 'Desligar lanterna' : 'Ligar lanterna'}</span>
           </button>
         </div>
       </section>
@@ -882,17 +889,17 @@ export default function App() {
       {ui.isResultModalOpen ? (
         <div className="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
           <div className="result-card">
-            <p className="result-label">Codigo lido</p>
-            <h2 id="result-title">Leitura concluida</h2>
+            <p className="result-label">Código lido</p>
+            <h2 id="result-title">Leitura concluída</h2>
             <p className="result-copy">Valor detectado:</p>
             <p className="result-code">{ui.resultCode || '-'}</p>
             <p className="result-copy">
-              {ui.resultFormat ? getReadSourceLabel(ui.resultFormat) : 'Leitura concluida com sucesso.'}
+              {ui.resultFormat ? getReadSourceLabel(ui.resultFormat) : 'Leitura concluída com sucesso.'}
             </p>
             {ui.copyFeedback ? <p className="result-inline-feedback modal-feedback">{ui.copyFeedback}</p> : null}
             <div className="actions actions-modal">
               <button className="button button-secondary" type="button" onClick={() => void handleCopyCode()}>
-                Copiar codigo
+                Copiar código
               </button>
               <button className="button button-primary" type="button" onClick={() => void restartScanner()}>
                 Ler novamente

@@ -383,6 +383,19 @@ h1 {
   border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
+.button-flashlight {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.flashlight-icon {
+  width: 44px;
+  height: auto;
+  flex: 0 0 auto;
+}
+
 .tips {
   margin-bottom: 0;
   padding-left: 18px;
@@ -460,6 +473,10 @@ body.modal-open {
 @media (max-width: 600px) {
   .actions-scanner {
     grid-template-columns: 1fr;
+  }
+
+  .button-flashlight {
+    justify-content: center;
   }
 
   .actions-modal {
