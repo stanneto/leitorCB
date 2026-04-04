@@ -266,16 +266,16 @@ h1 {
 
 .actions-scanner {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 84px;
   align-items: stretch;
 }
 
 .toggle-button {
   appearance: none;
   border: 0;
-  min-height: 64px;
+  min-height: 56px;
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -313,14 +313,14 @@ h1 {
 .toggle-button-label {
   flex: 1 1 auto;
   text-align: center;
-  font-size: clamp(1rem, 3.2vw, 1.45rem);
+  font-size: clamp(0.92rem, 2.7vw, 1.25rem);
   letter-spacing: 0.05em;
 }
 
 .toggle-button-knob {
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 60% 38%, rgba(255, 255, 255, 0.95), rgba(230, 230, 230, 0.92) 45%, rgba(188, 188, 188, 0.96) 72%, rgba(148, 148, 148, 0.98)),
@@ -335,7 +335,7 @@ h1 {
 .toggle-button-knob::after {
   content: "";
   position: absolute;
-  inset: 16px;
+  inset: 14px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.52);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
@@ -387,13 +387,13 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 64px;
+  min-height: 56px;
   min-width: 84px;
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 
 .flashlight-icon {
-  width: 36px;
+  width: 30px;
   height: auto;
   flex: 0 0 auto;
 }
@@ -473,10 +473,6 @@ body.modal-open {
 }
 
 @media (max-width: 600px) {
-  .actions-scanner {
-    grid-template-columns: 1fr;
-  }
-
   .button-flashlight {
     justify-content: center;
   }
