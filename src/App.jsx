@@ -826,8 +826,6 @@ export default function App() {
   }, []);
 
   const statusView = getStatusView(ui.statusType, ui.statusOverrideText);
-  const displayedCode = ui.lastReadCode || ui.inlineCode || ui.resultCode || '';
-  const displayedFormat = ui.lastReadFormat || ui.resultFormat || '';
   const startDisabled = ui.isStarting || ui.isScanning || !window.isSecureContext;
   const stopDisabled = !ui.isScanning || ui.isStopping;
   const torchDisabled = !ui.isScanning || ui.isStopping || !ui.torchAvailable;
@@ -867,37 +865,18 @@ export default function App() {
         </div>
 
         <div className="actions actions-scanner">
-          <button className="button button-primary" type="button" onClick={() => void startScanner()} disabled={startDisabled}>
-            Iniciar leitura
+          <button className="toggle-button toggle-button-on" type="button" onClick={() => void startScanner()} disabled={startDisabled}>
+            <span className="toggle-button-label">ON</span>
+            <span className="toggle-button-knob" aria-hidden="true" />
           </button>
-          <button className="button button-secondary" type="button" onClick={() => void stopScanner()} disabled={stopDisabled}>
-            Parar camera
+          <button className="toggle-button toggle-button-off" type="button" onClick={() => void stopScanner()} disabled={stopDisabled}>
+            <span className="toggle-button-knob" aria-hidden="true" />
+            <span className="toggle-button-label">OFF</span>
           </button>
           <button className="button button-secondary" type="button" onClick={() => void toggleTorch()} disabled={torchDisabled}>
             {ui.isTorchOn ? 'Desligar lanterna' : 'Ligar lanterna'}
           </button>
         </div>
-      </section>
-
-      <section className="result-dock" aria-live="polite">
-        <div className="result-inline-header">
-          <p className="result-inline-label">Conteudo lido</p>
-          <button
-            className="button button-inline"
-            type="button"
-            onClick={() => void handleCopyCode()}
-            disabled={!displayedCode}
-          >
-            Copiar codigo
-          </button>
-        </div>
-        <div className="result-inline-value" role="status" aria-live="polite">
-          {displayedCode || '-'}
-        </div>
-        <p className="result-inline-meta">
-          {getReadSourceLabel(displayedFormat)}
-        </p>
-        {ui.copyFeedback ? <p className="result-inline-feedback">{ui.copyFeedback}</p> : null}
       </section>
 
       {ui.isResultModalOpen ? (
