@@ -64,9 +64,13 @@ function pickBestCamera(devices) {
     return null;
   }
 
-  return devices
+  const scoredDevices = devices
     .slice()
-    .sort((left, right) => scoreCameraLabel(right.label) - scoreCameraLabel(left.label))[0];
+    .map((device) => ({ device, score: scoreCameraLabel(device.label) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score);
+
+  return scoredDevices[0]?.device || null;
 }
 
 function getPrimaryVideoConstraints() {
@@ -242,8 +246,7 @@ export async function requestBestAvailableStream() {
     Boolean(preferredDevice) &&
     (
       currentDeviceId !== preferredDevice.deviceId ||
-      isTrackLikelyFront(finalTrack) ||
-      !isTrackLikelyRear(finalTrack)
+      isTrackLikelyFront(finalTrack)
     );
 
   if (shouldForcePreferredRearCamera) {
@@ -268,6 +271,8 @@ export async function requestBestAvailableStream() {
     deviceId: getTrackDeviceId(finalTrack),
     facingMode: getTrackFacingMode(finalTrack),
     label: String(finalTrack?.label || ''),
+    preferredDeviceId: String(preferredDevice?.deviceId || ''),
+    rearConfirmed: isTrackLikelyRear(finalTrack),
     mobile: isMobileDevice()
   });
 
